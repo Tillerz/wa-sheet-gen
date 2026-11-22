@@ -42,6 +42,7 @@ Your design is saved as `project.json` in the same folder, so you can open and c
 
 > [!NOTE]
 > Things to remember:
+>
 > - If you create a sheet/block for a new system, WA dev team need to create this system for you in WA first.
 > - If the sheet shall be available to everyone, the WA dev team needs to "publish" the sheet/block ('released to public').
 > - The tool does not generate the tracker or the badge, but those are easy to do; the badge is a minimalistic version of the basic sheet, and the tracker is a stripped down version of the edit form.
@@ -92,12 +93,15 @@ Settings like recent sheets, and the autosave of unsaved work, are stored in `%A
 ## Screenshots
 
 ### Layout View
+
 ![Layout Mode](docs/layout.png)
 
 ### Sidebar
+
 <img alt="Sidebar" src="docs/sidebar.png" width="350px">
 
 ### Themes
+
 <img alt="Themes" src="docs/themes.png" width="350px">
 
 ### Examples
@@ -166,7 +170,7 @@ Then review the diff before you commit.
 
 ### Project layout
 
-```
+```txt
 bible.md            design document: all rules and decisions
 source/             Go server, generator and checks
 source/web/         the editor (embedded into the program)
