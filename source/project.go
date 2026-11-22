@@ -38,6 +38,7 @@ type Project struct {
 	Version   int       `json:"version"`
 	SheetName string    `json:"sheetName"`
 	Fonts     []Font    `json:"fonts"`
+	Theme     string    `json:"theme,omitempty"` // id of a sheet theme (themes.go), or empty
 	CustomCSS CustomCSS `json:"customCss"`
 	Root      *Node     `json:"root"`
 }

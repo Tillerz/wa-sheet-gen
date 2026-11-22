@@ -79,6 +79,9 @@ func validateProject(p *Project) []Problem {
 	if p.Root == nil || p.Root.Type != "container" {
 		return append(ps, errorf("", "the project has no sheet root"))
 	}
+	if p.Theme != "" && findTheme(p.Theme) == nil {
+		ps = append(ps, errorf("", "unknown theme %q", p.Theme))
+	}
 	for _, f := range p.Fonts {
 		if !fontNameRe.MatchString(f.Name) {
 			ps = append(ps, errorf("", "font name %q: use letters, digits, spaces and - only", f.Name))

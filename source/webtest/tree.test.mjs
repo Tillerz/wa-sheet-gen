@@ -381,3 +381,13 @@ test('repeatTarget: the element itself, the one around it, or the list it is in'
   assert.equal(t.repeatTarget(r, f.id).id, 'n5', 'the list it is already in');
   assert.equal(t.repeatTarget(r, 'n1'), null, 'nothing around the sheet root');
 });
+
+test('labels on top: a field turns its th cell into a td', () => {
+  const r = sample();
+  const tb = tableIn(r);
+  t.setLabelMode(r, tb.id, 'top');
+  const cell = tb.children[1].children[0]; // a th in the new table
+  assert.equal(cell.type, 'th');
+  t.insert(r, cell.id, 0, t.createField(r, 'string', t.idGen(r)));
+  assert.equal(cell.type, 'td');
+});

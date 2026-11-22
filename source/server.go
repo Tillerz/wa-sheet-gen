@@ -31,6 +31,7 @@ func newServer(token string, web fs.FS, settingsPath string) http.Handler {
 	api.HandleFunc("GET /api/fs/list", s.fsList)
 	api.HandleFunc("GET /api/rules", s.rules)
 	api.HandleFunc("GET /api/info", s.info)
+	api.HandleFunc("GET /api/themes", s.themeList)
 	api.HandleFunc("GET /api/settings", settings.get)
 	api.HandleFunc("PUT /api/settings", settings.put)
 	api.HandleFunc("GET /api/autosave", settings.getAutosave)
@@ -86,6 +87,14 @@ func writeError(w http.ResponseWriter, status int, err error) {
 
 func readJSON(w http.ResponseWriter, r *http.Request, v any) error {
 	return json.NewDecoder(http.MaxBytesReader(w, r.Body, maxBody)).Decode(v)
+}
+
+func (s *server) themeList(w http.ResponseWriter, r *http.Request) {
+	list := []map[string]string{}
+	for _, t := range themes {
+		list = append(list, map[string]string{"id": t.ID, "name": t.Name, "desc": t.Desc})
+	}
+	writeJSON(w, list)
 }
 
 func (s *server) info(w http.ResponseWriter, r *http.Request) {

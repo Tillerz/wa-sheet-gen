@@ -130,8 +130,12 @@ export function insert(root, parentId, index, node) {
   const kids = (p.node.children ||= []);
   const i = Math.max(0, Math.min(index, kids.length));
   kids.splice(i, 0, node);
-  // Labels on top: the field's label goes into the header row above it.
-  if (node.type === 'field' && isCell(p.node) && hasLabel(node)) addFieldLabel(root, node.id);
+  // Labels on top: the field's cell holds an input, so it is a td; the label goes
+  // into the header row above it.
+  if (node.type === 'field' && isCell(p.node)) {
+    p.node.type = 'td';
+    if (hasLabel(node)) addFieldLabel(root, node.id);
+  }
 }
 
 // labelMode of the table that holds id: 'left' (label cell before each field) or

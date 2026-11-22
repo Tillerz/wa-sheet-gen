@@ -186,6 +186,7 @@ Classes: sheet uses `lbl` / `var`, form uses `ilbl` / `ivar`, plus a per-field c
 
 - **Palette** (left): row, col, card, ul, ol, table, static text, static image, and one entry per field type.
 - **Canvas** (center): the sheet with real Bootstrap layout and the sheet's own CSS applied. Element outlines and type tags show on hover.
+- **Sidebars**: both can be resized by dragging their inner edge (double-click: default width); the widths are kept in the settings file.
 - **Properties panel** (right): settings of the selected element (col widths, card class, field settings, …). A path bar on top (`Sheet › Row › … › Table › Table row › Data cell (td)`) selects any element above the current one, e.g. a table that its cells cover completely.
 - **Drag and drop**:
   - from the palette into any allowed target (5.1)
@@ -248,6 +249,8 @@ Rules:
 - A formatted text inside a header, list item or cell is wrapped in `<span class='f-N'>`.
 - Colors: `#rgb`, `#rrggbb` or `var(--name)`; sizes in px. A value ending in `)` is written with a space before `;`.
 - **Fonts**: a sheet font list. Each entry has a name and a direct font file URL and becomes one `@font-face` block in `approved.css`. One font can be the sheet default (set on the root class).
+- **Themes** (Sheet panel): Cozy Fantasy, Elegant Medieval, Druid Grove, Steampunk, Horror, Sci-Fi Space, Sci-Fi Cyberpunk, Clean Modern, Clean Modern (dark) (`source/themes.go`). All share one template and style: sheet background, text color, font and border; cards; card headers; labels; values; form inputs; tables; and slightly striped rows in tables (`--bs-table-bg` on even rows, so a cell color set by the user still wins) and lists. Fonts are system fonts with a generic fallback; colors hex only. The theme CSS is written at the start of `style.css`, before the formats and the custom CSS, and its selectors are never more specific than a format rule, so formats and custom CSS override it. A test checks every theme against the WA rules.
+- In "labels on top" tables, a cell that gets a field becomes a `td`.
 - **Custom CSS**: the project has two free text boxes, one for extra `style.css` and one for extra `approved.css`. Their content is added at the end of the exported files and is checked by the validator. Edit custom CSS here, not in the exported files: the next export overwrites the exported files.
 
 ## 8. Save, load, export

@@ -90,6 +90,10 @@ func genApprovedCSS(p *Project) string {
 func genStyleCSS(p *Project) string {
 	var b strings.Builder
 	b.WriteString(cssHeader)
+	// Order: theme, then formats, then custom CSS, so each can override the one before.
+	if t := findTheme(p.Theme); t != nil {
+		b.WriteString(themeCSS(t, ".block-"+p.SheetName))
+	}
 	b.WriteString(genFormatCSS(p))
 	if s := strings.TrimSpace(p.CustomCSS.Style); s != "" {
 		b.WriteString(s + "\n")

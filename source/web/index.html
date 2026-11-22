@@ -49,6 +49,7 @@
       <p class="hint">Hidden element (e.g. a table under its cells)? Select something inside it, then click its name in the path at the top of the right panel.</p>
       <p class="hint">Keys: Delete removes, Ctrl+D duplicates, Ctrl+Z / Ctrl+Y undo and redo, Ctrl+S saves, Esc deselects.</p>
     </aside>
+    <div class="splitter" id="splitLeft" title="Drag to resize. Double-click: default width."></div>
     <section class="canvas-wrap">
       <div class="canvas-bar">
         <div class="segmented" id="viewSwitch" title="Layout: edit. Sheet / Form: how WA shows it, with sample data">
@@ -76,7 +77,8 @@
         <iframe id="canvas" src="canvas.html" title="Sheet canvas"></iframe>
       </div>
     </section>
-    <aside class="panel">
+    <div class="splitter" id="splitRight" title="Drag to resize. Double-click: default width."></div>
+    <aside class="panel" id="sidePanel">
       <h2>Sheet</h2>
       <label class="field">
         <span>Sheet name</span>

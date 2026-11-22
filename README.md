@@ -15,10 +15,11 @@ You build the sheet visually. The app writes clean Twig, CSS and YAML that pass 
 - **Tables made for sheets**: drop a field into a cell, and its label lands in a `th`, its input in the next `td`. Or put all labels on top, in a header row, for skill and weapon tables.
 - **Lists**: repeat a row, col, card, table row or list item N times. It is exported once inside a Twig loop, and fields become `skill_001`, `skill_002`, …, like hand-made WA sheets.
 - **Formatting without code**: alignment, bold, italic, underline, colors, font sizes, fonts, borders, radius, backgrounds and bullet styles. Everything goes into CSS classes, so you can still adjust the look in the CSS later.
+- **Themes**: Cozy Fantasy, Elegant Medieval, Druid Grove, Steampunk, Horror, Sci-Fi Space, Sci-Fi Cyberpunk, Clean Modern and Clean Modern (dark), with striped rows in tables and lists. Your own formats and CSS override the theme.
 - **Custom fonts and custom CSS**: fonts load directly from a font file URL into `approved.css`.
-- **Previews**: see the sheet and the edit form as World Anvil shows them, with sample data.
+- **Looks like it will on World Anvil**: the editor uses the same Bootstrap version as World Anvil sheets (5.0.1, CSS only) and applies exactly the CSS that the export writes, made by the same code. The **Sheet** and **Form** previews are not a separate imitation: they are the exported Twig files themselves, filled with sample data. What can still differ is what World Anvil adds around the sheet: the site's own styles and theme colors (`--dark`, `--light`), its page font, Font Awesome icons and `[img:…]` images, which the editor only stands in for.
 - **Built-in checks for World Anvil's rules**: no `);`, no quotes or `%` inside `( )` in CSS, no class names starting with `sh` or `py`, no filtered words like `script`, no JavaScript, unique field names. The export stops with a clear list of problems.
-- **Undo / redo**, autosave (nothing is lost on a reload or crash), keyboard shortcuts, recent sheets, light and dark mode.
+- **Comfortable editor**: resizable sidebars, a path bar to reach hidden elements (e.g. a table under its cells), undo / redo, autosave (nothing is lost on a reload or crash), keyboard shortcuts, recent sheets, light and dark mode.
 - **Small and private**: one program file, no installer, no account, no internet needed (except to load your own font URLs in the preview).
 
 ## What it exports

@@ -144,6 +144,7 @@ body.preview :where(#sheet) .row, body.preview :where(#sheet) [class^="col"],
 body.preview :where(#sheet) .card-header, body.preview :where(#sheet) .card-body,
 body.preview :where(#sheet) > .container-fluid { min-height: 0; }
 body.preview :where(#sheet) > .container-fluid { padding: 12px; }
+body.preview :where(#sheet) div > .var { border-bottom: none; }
 .ed-img-ph {
   display: inline-flex;
   align-items: center;

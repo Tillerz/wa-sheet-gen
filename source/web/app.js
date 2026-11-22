@@ -21,6 +21,7 @@ const state = {
   dirty: false,
   rules: { bannedWords: [], sheetNameRe: /^$/, classNameRe: /^$/, fieldNameRe: /^$/, forbiddenPrefixes: [], colorRe: /^$/, fontNameRe: /^$/, fontURLRe: /^$/ },
   formatClasses: {}, // node id → f-N, from /api/preview
+  themes: [], // from /api/themes
 };
 
 async function api(method, path, body) {
@@ -356,7 +357,48 @@ async function loadSettings() {
   ui.canvasTheme = settings.canvasTheme === 'light' ? 'light' : 'dark';
   ui.outlines = settings.outlines !== false;
   applyCanvasTheme();
+  for (const s of splitters) s.apply();
 }
+
+// ---------- resizable sidebars ----------
+
+// makeSplitter lets the user drag the edge of a sidebar. The width is kept in the settings.
+function makeSplitter(handle, pane, side, key, def, min, max) {
+  const clamp = (w) => Math.max(min, Math.min(max, Math.round(w)));
+  const set = (w) => { pane.style.width = `${clamp(w)}px`; };
+  handle.addEventListener('pointerdown', (e) => {
+    e.preventDefault();
+    handle.setPointerCapture(e.pointerId);
+    handle.classList.add('active');
+    document.body.classList.add('resizing');
+    const startX = e.clientX;
+    const startW = pane.getBoundingClientRect().width;
+    const move = (ev) => set(startW + (side === 'left' ? ev.clientX - startX : startX - ev.clientX));
+    const up = () => {
+      handle.removeEventListener('pointermove', move);
+      handle.removeEventListener('pointerup', up);
+      handle.removeEventListener('pointercancel', up);
+      handle.classList.remove('active');
+      document.body.classList.remove('resizing');
+      settings[key] = clamp(pane.getBoundingClientRect().width);
+      saveSettings();
+    };
+    handle.addEventListener('pointermove', move);
+    handle.addEventListener('pointerup', up);
+    handle.addEventListener('pointercancel', up);
+  });
+  handle.addEventListener('dblclick', () => {
+    set(def);
+    delete settings[key];
+    saveSettings();
+  });
+  return { apply: () => set(Number(settings[key]) || def) };
+}
+
+const splitters = [
+  makeSplitter($('splitLeft'), $('palette'), 'left', 'paletteWidth', 180, 140, 400),
+  makeSplitter($('splitRight'), $('sidePanel'), 'right', 'panelWidth', 300, 240, 700),
+];
 
 // addRecent puts folder first in the recent list (at most 8 entries).
 function addRecent(folder) {
@@ -510,7 +552,24 @@ function renderSheetExtras() {
     return [h('label', { class: 'field' }, h('span', { textContent: label }), area), h('p', { class: 'hint', textContent: hint })];
   };
 
+  const themeSel = h('select', {
+    onchange: () => {
+      if (themeSel.value) p.theme = themeSel.value;
+      else delete p.theme;
+      themeHint.textContent = themeDesc();
+      noteChange(true);
+    },
+  }, h('option', { value: '', textContent: '(none)' }), ...state.themes.map((t) => h('option', { value: t.id, textContent: t.name })));
+  themeSel.value = p.theme || '';
+  const themeDesc = () => {
+    const t = state.themes.find((x) => x.id === themeSel.value);
+    return t ? `${t.desc}. Written at the start of style.css; your formats and custom CSS override it.` : 'Colors, fonts, borders and striped rows for the whole sheet.';
+  };
+  const themeHint = h('p', { class: 'hint', textContent: themeDesc() });
+
   $('sheetExtras').replaceChildren(
+    h('label', { class: 'field' }, h('span', { textContent: 'Theme' }), themeSel),
+    themeHint,
     h('details', {},
       h('summary', { textContent: `Fonts (${p.fonts.length})` }),
       h('p', { class: 'hint', textContent: 'Each font needs a direct link to a font file (.woff2, .otf, …). It goes into approved.css.' }),
@@ -734,7 +793,9 @@ function fieldPanel(node, out) {
     out.push(h('p', { class: 'hint', textContent: `In a list: on WA this field is ${p.name}_001 … ${p.name}_${String(r).padStart(3, '0')}.` }));
   }
   if (T.isCell(parent)) {
-    out.push(h('p', { class: 'hint', textContent: 'In a table cell the field shows only its input; its label sits in the label cell (th) before it.' }));
+    out.push(h('p', { class: 'hint', textContent: T.labelMode(state.project.root, node.id) === 'top'
+      ? 'In a table cell the field shows only its input; its label sits in the header row above it.'
+      : 'In a table cell the field shows only its input; its label sits in the label cell (th) before it.' }));
   }
   out.push(h('p', { class: 'hint', textContent: 'Tip: double-click the label in the sheet to edit it.' }));
 }
@@ -1260,6 +1321,7 @@ async function start() {
       fontURLRe: new RegExp(rules.fontURLPattern),
     };
     await loadSettings();
+    state.themes = await api('GET', '/api/themes');
     const info = await api('GET', '/api/info');
     $('appVersion').textContent = 'v' + info.version;
     if (!(await restoreAutosave())) setProject(await api('GET', '/api/project/new'), '');

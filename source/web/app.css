@@ -150,6 +150,7 @@ button.toggle.active { border-color: var(--accent); color: var(--accent); }
 
 .palette {
   width: 180px;
+  flex: none;
   padding: 16px 12px;
   background: var(--surface);
   border-right: 1px solid var(--border);
@@ -218,6 +219,20 @@ summary { cursor: pointer; font-weight: 600; font-size: 13px; }
 details .field { margin-top: 8px; }
 textarea.code { font-family: "Cascadia Code", Consolas, monospace; font-size: 12px; }
 
+/* Resizable sidebars */
+.splitter {
+  flex: none;
+  width: 6px;
+  margin: 0 -3px;
+  z-index: 5;
+  cursor: col-resize;
+  background: transparent;
+  transition: background 0.12s;
+}
+.splitter:hover, body.resizing .splitter.active { background: var(--accent); }
+body.resizing { cursor: col-resize; user-select: none; }
+body.resizing iframe { pointer-events: none; }
+
 /* Context menu */
 .menu {
   position: fixed;
@@ -242,6 +257,7 @@ textarea.code { font-family: "Cascadia Code", Consolas, monospace; font-size: 12
 .menu hr { border: none; border-top: 1px solid var(--border); margin: 4px 0; }
 .panel {
   width: 300px;
+  flex: none;
   padding: 16px;
   background: var(--surface);
   border-left: 1px solid var(--border);
