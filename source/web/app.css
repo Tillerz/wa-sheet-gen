@@ -219,6 +219,7 @@ details[open] { padding-bottom: 10px; }
 summary { cursor: pointer; font-weight: 600; font-size: 13px; }
 .font-row { display: flex; flex-direction: column; gap: 4px; padding: 8px 0; border-bottom: 1px dashed var(--border); }
 details .field { margin-top: 8px; }
+details > select { margin: 8px 0 6px; }
 textarea.code { font-family: "Cascadia Code", Consolas, monospace; font-size: 12px; }
 
 /* Resizable sidebars */

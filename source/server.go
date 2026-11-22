@@ -32,6 +32,7 @@ func newServer(token string, web fs.FS, settingsPath string) http.Handler {
 	api.HandleFunc("GET /api/rules", s.rules)
 	api.HandleFunc("GET /api/info", s.info)
 	api.HandleFunc("GET /api/themes", s.themeList)
+	api.HandleFunc("GET /api/fontlib", func(w http.ResponseWriter, r *http.Request) { writeJSON(w, fontLibrary) })
 	api.HandleFunc("GET /api/settings", settings.get)
 	api.HandleFunc("PUT /api/settings", settings.put)
 	api.HandleFunc("GET /api/autosave", settings.getAutosave)

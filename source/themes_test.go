@@ -48,3 +48,19 @@ func TestThemeComesFirstInStyleCSS(t *testing.T) {
 		t.Errorf("unknown theme not reported")
 	}
 }
+
+// Every library font must pass the font checks and the WA CSS rules in approved.css.
+func TestFontLibraryPassesChecks(t *testing.T) {
+	p := newProject()
+	p.Fonts = fontLibrary
+	if ps := validateProject(p); hasErrors(ps) {
+		t.Errorf("library fonts: %s", problemsText(ps))
+	}
+	css := genApprovedCSS(p)
+	if ps := checkCSS("approved.css", css); len(ps) > 0 {
+		t.Errorf("approved.css with all library fonts: %s", problemsText(ps))
+	}
+	if strings.Count(css, "@font-face") != len(fontLibrary) {
+		t.Errorf("not every font written")
+	}
+}

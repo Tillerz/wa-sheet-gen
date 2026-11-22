@@ -22,6 +22,7 @@ const state = {
   rules: { bannedWords: [], sheetNameRe: /^$/, classNameRe: /^$/, fieldNameRe: /^$/, forbiddenPrefixes: [], colorRe: /^$/, fontNameRe: /^$/, fontURLRe: /^$/ },
   formatClasses: {}, // node id → f-N, from /api/preview
   themes: [], // from /api/themes
+  fontLibrary: [], // from /api/fontlib
 };
 
 async function api(method, path, body) {
@@ -532,8 +533,21 @@ function renderSheetExtras() {
     });
     return h('div', { class: 'font-row' }, name, url, h('div', { class: 'sel-actions' }, del), err);
   });
+  // Font library: WA sheet fonts, one click to add (only picked fonts go into approved.css).
+  const have = new Set(p.fonts.map((f) => f.name));
+  const libSel = h('select', {
+    onchange: () => {
+      const f = state.fontLibrary.find((x) => x.name === libSel.value);
+      if (!f) return;
+      p.fonts.push({ name: f.name, url: f.url });
+      noteChange(true);
+      renderSheetExtras();
+      $('sheetExtras').querySelector('details').open = true;
+    },
+  }, h('option', { value: '', textContent: 'Add from library…' }),
+  ...state.fontLibrary.filter((f) => !have.has(f.name)).map((f) => h('option', { value: f.name, textContent: f.name })));
   const addFont = h('button', {
-    type: 'button', textContent: 'Add font',
+    type: 'button', textContent: 'Add own font',
     onclick: () => { p.fonts.push({ name: '', url: '' }); noteChange(true); renderSheetExtras(); },
   });
 
@@ -573,7 +587,7 @@ function renderSheetExtras() {
     h('details', {},
       h('summary', { textContent: `Fonts (${p.fonts.length})` }),
       h('p', { class: 'hint', textContent: 'Each font needs a direct link to a font file (.woff2, .otf, …). It goes into approved.css.' }),
-      ...fontRows, addFont,
+      ...fontRows, libSel, addFont,
       h('label', { class: 'field' }, h('span', { textContent: 'Default font of the sheet' }), defSel)),
     h('details', { open: !!(p.customCss.style || p.customCss.approved) },
       h('summary', { textContent: 'Custom CSS' }),
@@ -1349,6 +1363,7 @@ async function start() {
     };
     await loadSettings();
     state.themes = await api('GET', '/api/themes');
+    state.fontLibrary = await api('GET', '/api/fontlib');
     const info = await api('GET', '/api/info');
     $('appVersion').textContent = 'v' + info.version;
     if (!(await restoreAutosave())) setProject(await api('GET', '/api/project/new'), '');
