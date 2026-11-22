@@ -236,7 +236,7 @@ Border, border radius and background color are offered only where they make sens
 | field input (form): `input`, `textarea`, `select` | yes, set separately from the sheet look |
 | row, col, ul, ol, li, static text | no |
 
-A field has three looks, switched with Label / Value / Input in the panel: the label in sheet and form (`.lbl-hp-max`, `.ilbl-hp-max`), the value in the sheet (`.var-hp-max`) and the input in the form (`:is(input, textarea, select).ivar-hp-max`). The quick buttons act on the active look.
+A field has three looks, switched with Label / Value / Input in the panel: the label in sheet and form (`.lbl-hp-max`, `.ilbl-hp-max`), the value in the sheet (`.var-hp-max`) and the input in the form (`:is(input, textarea, select).ivar-hp-max`). The quick buttons act on the active look. The text formats of the Value look (align, bold, italic, underline, color, size, font) also apply to the form input, so a centered value is centered in the form too; its border and background stay on the sheet value. The Input look is written later and overrides them.
 
 A plain background color goes into `style.css`. A gradient would go into `approved.css` (3.1); gradients are not in the toolbar in version 1, use custom CSS.
 

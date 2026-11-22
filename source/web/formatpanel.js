@@ -111,6 +111,9 @@ export function buildFormat({ node, look, setLook, rules, fonts, set, refresh, i
     }))));
   }
 
+  if (node.type === 'field' && look === 'fmt') {
+    out.push(el('p', { class: 'hint', textContent: 'Text formats of the value also apply to the input in the form. Set the Input look to change the input only.' }));
+  }
   out.push(row('Align', ...[['left', '⇤', 'Left'], ['center', '↔', 'Center'], ['right', '⇥', 'Right']].map(([v, icon, title]) => toggle(icon, title, m.align === v, () => {
     put('align', cur().align === v ? '' : v);
     refresh();

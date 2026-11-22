@@ -225,7 +225,13 @@ func genFormatCSS(p *Project) string {
 	eachField(p.Root, func(n *Node) {
 		cls := fieldClass(propString(n, "name"))
 		cssRule(&b, fmt.Sprintf("%s .lbl-%s, %s .ilbl-%s", root, cls, root, cls), cssDecls(fmtOf(n, "fmtLabel"), false))
-		cssRule(&b, fmt.Sprintf("%s .var-%s", root, cls), cssDecls(fmtOf(n, "fmt"), true))
+		// Value look: its text formats (align, bold, color, size, font, …) also apply to the
+		// form input, so a centered value is centered in the form too; border and background
+		// only to the sheet value. The Input look comes later and overrides it.
+		value := fmtOf(n, "fmt")
+		text := cssDecls(value, false)
+		cssRule(&b, fmt.Sprintf("%s .var-%s, %s :is(input, textarea, select).ivar-%s", root, cls, root, cls), text)
+		cssRule(&b, fmt.Sprintf("%s .var-%s", root, cls), cssDecls(value, true)[len(text):])
 		cssRule(&b, fmt.Sprintf("%s :is(input, textarea, select).ivar-%s", root, cls), cssDecls(fmtOf(n, "fmtInput"), true))
 	})
 	return b.String()

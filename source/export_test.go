@@ -333,3 +333,14 @@ func TestPresetSplitList(t *testing.T) {
 		t.Errorf("Skill 1 shown more than once")
 	}
 }
+
+// Value text formats also style the form input; the Input look comes later, so it wins.
+func TestValueFormatsReachTheInput(t *testing.T) {
+	files, _ := buildExport(loadTestProject(t, "full.project.json"))
+	css := files["style.css"]
+	both := strings.Index(css, ".block-test-sheet .var-level, .block-test-sheet :is(input, textarea, select).ivar-level {")
+	input := strings.Index(css, "\n.block-test-sheet :is(input, textarea, select).ivar-level {")
+	if both < 0 || input < 0 || both > input {
+		t.Errorf("value rule %d must come before the input rule %d:\n%s", both, input, css)
+	}
+}
