@@ -169,17 +169,29 @@ func repeatCount(n *Node) int {
 	return 1
 }
 
+// maxListNumber is the highest entry number of a list (bible 11).
+const maxListNumber = 199
+
+// repeatStart is the number of a list's first entry (props.repeatStart), default 1.
+// A long list split over several cards uses e.g. 1..20, 21..40, 41..60.
+func repeatStart(n *Node) int {
+	if v, ok := propNumber(n, "repeatStart"); ok && v >= 1 {
+		return int(v)
+	}
+	return 1
+}
+
 // eachFieldEntry calls fn once per WA field: a field in a list of N once per entry,
 // with suffix "_001" … ("" outside lists).
 func eachFieldEntry(root *Node, fn func(n *Node, suffix string)) {
-	var walk func(n *Node, count int)
-	walk = func(n *Node, count int) {
+	var walk func(n *Node, start, count int)
+	walk = func(n *Node, start, count int) {
 		if c := repeatCount(n); c > 1 {
-			count = c
+			start, count = repeatStart(n), c
 		}
 		if n.Type == "field" {
 			if count > 1 {
-				for i := 1; i <= count; i++ {
+				for i := start; i < start+count; i++ {
 					fn(n, fmt.Sprintf("_%03d", i))
 				}
 			} else {
@@ -187,10 +199,10 @@ func eachFieldEntry(root *Node, fn func(n *Node, suffix string)) {
 			}
 		}
 		for _, c := range n.Children {
-			walk(c, count)
+			walk(c, start, count)
 		}
 	}
-	walk(root, 1)
+	walk(root, 1, 1)
 }
 
 func eachField(n *Node, fn func(*Node)) {
@@ -305,7 +317,8 @@ const loopIDLine = "{% set id = i %}{% if id < 10 %}{% set id = '0' ~ id %}{% en
 func (g *twigGen) node(n *Node, parent *Node, depth int) {
 	if count := repeatCount(n); count > 1 && !g.loop {
 		// A list (bible 11): the block is written once inside a Twig loop.
-		g.line(depth, fmt.Sprintf("{%% for i in 1..%d %%}", count))
+		start := repeatStart(n)
+		g.line(depth, fmt.Sprintf("{%% for i in %d..%d %%}", start, start+count-1))
 		g.line(depth+1, loopIDLine)
 		g.loop = true
 		g.nodeInner(n, parent, depth+1)

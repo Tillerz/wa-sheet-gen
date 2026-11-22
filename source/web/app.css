@@ -183,6 +183,8 @@ textarea { resize: vertical; font-family: inherit; }
 input:disabled, select:disabled { opacity: 0.6; }
 
 .sel-type { font-weight: 600; margin-bottom: 8px; }
+.range-row { display: flex; gap: 8px; }
+.range-row .field { flex: 1; }
 .crumbs { display: flex; flex-wrap: wrap; align-items: center; gap: 2px 4px; margin-bottom: 8px; font-size: 12px; }
 .crumb { border: none; background: none; padding: 1px 4px; color: var(--accent); border-radius: 4px; font-size: 12px; }
 .crumb:hover { background: var(--bg); }

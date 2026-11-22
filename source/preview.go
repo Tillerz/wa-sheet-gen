@@ -17,7 +17,7 @@ var (
 	twigVarRe   = regexp.MustCompile(`\{\{variables\.([a-z0-9_]+)(?:\|default)?\}\}`)
 	bbImgRe     = regexp.MustCompile(`\[img:([0-9]+)\]`)
 	twigUnquote = strings.NewReplacer(`\'`, `'`, `\\`, `\`)
-	twigLoopRe  = regexp.MustCompile(`(?s)\{% for i in 1\.\.([0-9]+) %\}\n[ ]*` + regexp.QuoteMeta(loopIDLine) + `\n(.*?)[ ]*\{% endfor %\}\n`)
+	twigLoopRe  = regexp.MustCompile(`(?s)\{% for i in ([0-9]+)\.\.([0-9]+) %\}\n[ ]*` + regexp.QuoteMeta(loopIDLine) + `\n(.*?)[ ]*\{% endfor %\}\n`)
 	twigAttrRe  = regexp.MustCompile(`attribute\(variables, '([a-z0-9_]+)' ~ id\)`)
 )
 
@@ -79,11 +79,12 @@ func renderPreview(twig string, vars map[string]string) string {
 	// Lists: repeat the loop body with id = 001, 002, …
 	out := twigLoopRe.ReplaceAllStringFunc(twig, func(m string) string {
 		g := twigLoopRe.FindStringSubmatch(m)
-		count, _ := strconv.Atoi(g[1])
+		from, _ := strconv.Atoi(g[1])
+		to, _ := strconv.Atoi(g[2])
 		var b strings.Builder
-		for i := 1; i <= count; i++ {
+		for i := from; i <= to; i++ {
 			id := fmt.Sprintf("%03d", i)
-			body := twigAttrRe.ReplaceAllString(g[2], "variables.${1}"+id)
+			body := twigAttrRe.ReplaceAllString(g[3], "variables.${1}"+id)
 			b.WriteString(strings.ReplaceAll(body, "{{id}}", id))
 		}
 		return b.String()

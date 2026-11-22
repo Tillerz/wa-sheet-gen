@@ -650,9 +650,18 @@ const fieldTypeNames = {
   select: 'Dropdown', suggest: 'Suggest', image: 'Image ID',
 };
 
+// usedNamesExcept lists the field names node may not take. Fields in lists may share a
+// name with fields in other lists (a long list split over cards); the checker makes sure
+// their numbered WA names do not overlap.
 function usedNamesExcept(node) {
-  const used = T.fieldNames(state.project.root);
-  used.delete(node.props.name);
+  const root = state.project.root;
+  const used = new Set();
+  const inList = !!T.listOf(root, node.id);
+  T.walk(root, (n) => {
+    if (n.type !== 'field' || n === node) return;
+    if (inList && T.listOf(root, n.id)) return;
+    used.add(n.props.name);
+  });
   return used;
 }
 
@@ -789,8 +798,9 @@ function fieldPanel(node, out) {
   const parent = T.find(state.project.root, node.id).parent;
   const list = T.listOf(state.project.root, node.id);
   if (list) {
-    const r = T.repeatCount(list);
-    out.push(h('p', { class: 'hint', textContent: `In a list: on WA this field is ${p.name}_001 … ${p.name}_${String(r).padStart(3, '0')}.` }));
+    const [a, b] = T.listRange(list);
+    const pad = (i) => String(i).padStart(3, '0');
+    out.push(h('p', { class: 'hint', textContent: `☰ In a list: on WA this field is ${p.name}_${pad(a)} … ${p.name}_${pad(b)}.` }));
   }
   if (T.isCell(parent)) {
     out.push(h('p', { class: 'hint', textContent: T.labelMode(state.project.root, node.id) === 'top'
@@ -935,6 +945,7 @@ function renderSelection(node) {
     out.push(h('p', { class: 'hint', textContent: mode === 'top'
       ? 'A field takes one cell; its label goes into the header row (first row) above it, if that cell is empty.'
       : 'A field takes two cells: its label in a th, its input in the next td.' }));
+    out.push(h('p', { class: 'hint', textContent: 'To move the whole table: keep it selected and drag anywhere inside it.' }));
   }
 
   if (['table', 'tr', 'th', 'td'].includes(node.type)) {
@@ -950,19 +961,35 @@ function renderSelection(node) {
     const problem = T.listProblem(state.project.root, target);
     const r = T.repeatCount(target);
     const what = T.repeatNames[target.type];
-    const input = h('input', {
-      type: 'number', min: 1, max: 99, value: r > 1 ? r : '', placeholder: 'no list',
-      disabled: !!problem && r < 2,
-      oninput: () => {
-        const v = Number(input.value);
-        if (input.value === '' || (v >= 1 && v <= 99)) {
-          T.setRepeat(target, input.value);
+    const [a, b] = r > 1 ? T.listRange(target) : [1, 1];
+    const disabled = !!problem && r < 2;
+    const err = h('p', { class: 'error' });
+    const apply = () => {
+      const from = Number(fromIn.value || 1);
+      const to = Number(toIn.value || 0);
+      if (toIn.value === '' || to <= from) {
+        if (toIn.value === '') {
+          T.setListRange(target, 1, 1);
+          err.textContent = '';
           changed();
+        } else {
+          err.textContent = 'A list needs at least 2 entries.';
         }
-      },
-    });
-    out.push(h('h3', { class: 'sub', textContent: 'List' }));
-    out.push(labeled(target === node ? 'Repeat (entries)' : `Repeat the ${what} around it (entries)`, input));
+        return;
+      }
+      if (from < 1 || to > T.maxListNumber) {
+        err.textContent = `Entries go from 1 to ${T.maxListNumber}.`;
+        return;
+      }
+      err.textContent = '';
+      T.setListRange(target, from, to);
+      changed();
+    };
+    const fromIn = h('input', { type: 'number', min: 1, max: T.maxListNumber, value: r > 1 ? a : '', placeholder: '1', disabled, oninput: apply });
+    const toIn = h('input', { type: 'number', min: 2, max: T.maxListNumber, value: r > 1 ? b : '', placeholder: 'no list', disabled, oninput: apply });
+    out.push(h('h3', { class: 'sub', textContent: target === node ? 'List' : `List (the ${what} around it)` }));
+    out.push(h('div', { class: 'range-row' }, labeled('From entry', fromIn), labeled('To entry', toIn)), err);
+    out.push(h('p', { class: 'hint', textContent: 'Split a long list over cards: 1–20, 21–40, 41–60. Duplicate a list to continue the numbers.' }));
     if (target !== node) {
       out.push(h('div', { class: 'sel-actions' }, h('button', { type: 'button', textContent: `Select the ${what}`, onclick: () => editor.select(target.id) })));
     }

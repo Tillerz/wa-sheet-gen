@@ -317,8 +317,8 @@ test('lists: allowed types, nesting and the name field', () => {
   assert.ok(t.listProblem(r, tb.children[0]).includes('inside a list'));
   assert.equal(t.listOf(r, tb.children[0].id), col);
   assert.ok(t.listProblem(r, tb).includes('Only rows'));
-  t.setRepeat(col, 120);
-  assert.equal(col.props.repeat, 99);
+  t.setRepeat(col, 250);
+  assert.equal(col.props.repeat, 199, 'up to entry 199');
   t.setRepeat(col, '');
   assert.equal(col.props.repeat, undefined);
   assert.equal(t.listOf(r, tb.id), null);
@@ -390,4 +390,55 @@ test('labels on top: a field turns its th cell into a td', () => {
   assert.equal(cell.type, 'th');
   t.insert(r, cell.id, 0, t.createField(r, 'string', t.idGen(r)));
   assert.equal(cell.type, 'td');
+});
+
+test('list ranges: start, end, limits', () => {
+  const n = { type: 'col', props: {} };
+  t.setListRange(n, 21, 40);
+  assert.deepEqual(n.props, { repeat: 20, repeatStart: 21 });
+  assert.deepEqual(t.listRange(n), [21, 40]);
+  t.setListRange(n, 1, 20);
+  assert.deepEqual(n.props, { repeat: 20 }, 'start 1 is not stored');
+  t.setListRange(n, 190, 250);
+  assert.deepEqual(t.listRange(n), [190, 199]);
+  t.setListRange(n, 5, 5);
+  assert.deepEqual(n.props, {}, 'one entry is no list');
+});
+
+test('duplicating a list continues it with the same field names', () => {
+  const r = sample();
+  const col = t.find(r, 'n5').node;
+  const f = t.createField(r, 'string', t.idGen(r));
+  f.props.name = 'weapon';
+  t.insert(r, col.id, 0, f);
+  t.setListRange(col, 1, 20);
+  const copy = t.duplicate(r, col.id);
+  assert.deepEqual(t.listRange(copy), [21, 40]);
+  assert.equal(copy.children[0].props.name, 'weapon', 'name kept');
+  const third = t.duplicate(r, copy.id);
+  assert.deepEqual(t.listRange(third), [41, 60]);
+  // a field duplicated inside a list still gets a new name
+  const inner = t.duplicate(r, f.id);
+  assert.equal(inner.props.name, 'weapon_2');
+});
+
+test('duplicating a table continues the list row inside it', () => {
+  const r = sample();
+  const tb = tableIn(r);
+  t.setLabelMode(r, tb.id, 'top');
+  const row = tb.children[1];
+  const f = t.createField(r, 'string', t.idGen(r));
+  f.props.name = 'weapon';
+  f.props.label = 'Weapon';
+  t.insert(r, row.children[0].id, 0, f);
+  t.setListRange(row, 1, 20);
+  const plain = t.createField(r, 'number', t.idGen(r));
+  plain.props.name = 'total';
+  t.insert(r, 'n5', 1, plain);
+  const copy = t.duplicate(r, tb.id);
+  const copyRow = copy.children[1];
+  assert.deepEqual(t.listRange(copyRow), [21, 40]);
+  assert.equal(copyRow.children[0].children[0].props.name, 'weapon', 'list field keeps its name');
+  assert.equal(copy.children[0].children[0].children[0].props.field, copyRow.children[0].children[0].id, 'header label points to the copy');
+  assert.deepEqual(t.listRange(row), [1, 20], 'original unchanged');
 });

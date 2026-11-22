@@ -299,18 +299,30 @@ export function duplicate(root, id) {
   const used = fieldNames(root);
   const copy = structuredClone(n.node);
   const newIds = {};
-  walk(copy, (c) => {
+  // Every list in the copy (the copy itself or a list inside, e.g. a table row) continues:
+  // same field names, the next numbers (1..20 → 21..40). Fields outside lists get new names.
+  const visit = (c, inList) => {
+    if (repeatCount(c) > 1) {
+      const [a, b] = listRange(c);
+      c.props.repeatStart = b + 1;
+      c.props.repeat = b - a + 1;
+      inList = true;
+    }
     const id = nextId();
     newIds[c.id] = id;
     c.id = id;
     if (c.type === 'field' && c.props) {
-      const name = uniqueFieldName(c.props.name, used);
-      used.add(name);
-      if (c.props.label === c.props.name) c.props.label = name;
-      c.props.name = name;
+      if (!inList) {
+        const name = uniqueFieldName(c.props.name, used);
+        used.add(name);
+        if (c.props.label === c.props.name) c.props.label = name;
+        c.props.name = name;
+      }
       delete c.props.required;
     }
-  });
+    for (const k of c.children || []) visit(k, inList);
+  };
+  visit(copy, false);
   // Field labels in the copy point to the copied fields.
   walk(copy, (c) => {
     if (c.type === 'flabel' && newIds[c.props.field]) c.props.field = newIds[c.props.field];
@@ -509,6 +521,37 @@ export function repeatCount(node) {
   return r > 1 ? r : 1;
 }
 
+// maxListNumber is the highest entry number of a list (same as in Go).
+export const maxListNumber = 199;
+
+// repeatStart is the number of a list's first entry, default 1. A long list split over
+// several cards uses e.g. 1..20, 21..40, 41..60.
+export function repeatStart(node) {
+  const s = node.props && Number(node.props.repeatStart);
+  return s >= 1 ? s : 1;
+}
+
+// listRange returns [first, last] entry number of a list.
+export function listRange(node) {
+  const s = repeatStart(node);
+  return [s, s + repeatCount(node) - 1];
+}
+
+// setListRange makes node a list from..to (to - from >= 1, to <= 199), or a normal block.
+export function setListRange(node, from, to) {
+  node.props ||= {};
+  const a = Math.max(1, Math.round(Number(from)) || 1);
+  const b = Math.min(maxListNumber, Math.round(Number(to)) || 0);
+  if (b - a < 1) {
+    delete node.props.repeat;
+    delete node.props.repeatStart;
+    return;
+  }
+  node.props.repeat = b - a + 1;
+  if (a > 1) node.props.repeatStart = a;
+  else delete node.props.repeatStart;
+}
+
 // listProblem tells why node cannot become a list, or ''.
 export function listProblem(root, node) {
   if (!repeatTypes.has(node.type)) return 'Only rows, cols, cards, table rows and list items can repeat.';
@@ -522,12 +565,12 @@ export function listProblem(root, node) {
   return '';
 }
 
-// setRepeat makes node a list of count entries (2–99), or a normal block (count 1 or empty).
+// setRepeat makes node a list of count entries from its current start, or a normal
+// block (count 1 or empty).
 export function setRepeat(node, count) {
-  node.props ||= {};
   const n = Math.round(Number(count));
-  if (!n || n < 2) delete node.props.repeat;
-  else node.props.repeat = Math.min(99, n);
+  const s = repeatStart(node);
+  setListRange(node, s, n >= 2 ? s + n - 1 : s);
 }
 
 // listOf returns the list (node or ancestor) that node is in, or null.

@@ -28,7 +28,9 @@ export function createEditor({ iframe, getProject, onChange, onSelect, openMenu,
 
   function tagText(node) {
     const r = T.repeatCount(node);
-    return baseTag(node) + (r > 1 ? ` × ${r} (list)` : '');
+    if (r < 2) return baseTag(node);
+    const [a, b] = T.listRange(node);
+    return `${baseTag(node)} × ${r} (list ${a}–${b})`;
   }
 
   function baseTag(node) {
@@ -125,6 +127,17 @@ export function createEditor({ iframe, getProject, onChange, onSelect, openMenu,
       case 'field': {
         const [lbl, val] = fieldParts(node);
         val.style.display = 'block';
+        const list = T.listOf(root(), node.id);
+        if (list) {
+          // A small mark on fields in lists, with their WA names.
+          const [a, b] = T.listRange(list);
+          const pad = (i) => String(i).padStart(3, '0');
+          const mark = doc.createElement('span');
+          mark.className = 'ed-listmark';
+          mark.textContent = '☰';
+          mark.title = `In a list: ${p.name}_${pad(a)} … ${p.name}_${pad(b)} on WA. List settings: right sidebar.`;
+          el.append(mark);
+        }
         // In a table cell a field shows only its value; the label sits in a field label.
         if (lbl && parentType !== 'th' && parentType !== 'td') {
           lbl.style.display = 'block';
@@ -372,7 +385,13 @@ export function createEditor({ iframe, getProject, onChange, onSelect, openMenu,
       e.preventDefault();
       return;
     }
-    const el = e.target.closest && e.target.closest('[data-id]');
+    let el = e.target.closest && e.target.closest('[data-id]');
+    // A drag inside the selected element moves the selected element. So a table, which its
+    // cells cover completely, can be moved: select it in the path bar, then drag anywhere in it.
+    if (el && selectedId && el.dataset.id !== selectedId) {
+      const sel = elsFor(selectedId)[0];
+      if (sel && sel.draggable && sel.contains(el)) el = sel;
+    }
     if (!el || !el.draggable) return;
     drag = { kind: 'move', id: el.dataset.id, type: el.dataset.type };
     e.dataTransfer.setData('text/plain', el.dataset.id);
@@ -692,15 +711,19 @@ export function createEditor({ iframe, getProject, onChange, onSelect, openMenu,
     openMenu(items, r.left + e.clientX, r.top + e.clientY);
   }
 
+  // askRepeat asks for the entries: a number of entries (20) or a range (21-40).
   function askRepeat(node, current) {
-    const answer = window.prompt('How many entries? (2 to 99)', String(current));
+    const [a, b] = T.repeatCount(node) > 1 ? T.listRange(node) : [1, current];
+    const answer = window.prompt(`Entries: a number (e.g. 20) or a range (e.g. 21-40). Up to ${T.maxListNumber}.`, a > 1 ? `${a}-${b}` : String(b - a + 1));
     if (answer === null) return;
-    const n = Math.round(Number(answer));
-    if (!(n >= 2 && n <= 99)) {
-      window.alert('Please enter a number from 2 to 99.');
+    const m = /^\s*(\d+)\s*(?:[-–.]+\s*(\d+))?\s*$/.exec(answer);
+    const from = m && m[2] ? Number(m[1]) : 1;
+    const to = m ? Number(m[2] || m[1]) : 0;
+    if (!m || to - from < 1 || to > T.maxListNumber) {
+      window.alert(`Please enter at least 2 entries, up to entry ${T.maxListNumber}, e.g. 20 or 21-40.`);
       return;
     }
-    run(() => T.setRepeat(node, n), node.id);
+    run(() => T.setListRange(node, from, to), node.id);
   }
 
   // ---------- actions ----------

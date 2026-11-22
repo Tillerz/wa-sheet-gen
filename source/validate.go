@@ -107,8 +107,10 @@ func validateProject(p *Project) []Problem {
 			switch {
 			case !repeatTypes[n.Type]:
 				ps = append(ps, errorf(n.ID, "a %s cannot be a list", n.Type))
-			case v != float64(int(v)) || v < 2 || v > 99:
-				ps = append(ps, errorf(n.ID, "a list repeats 2 to 99 times"))
+			case v != float64(int(v)) || v < 2:
+				ps = append(ps, errorf(n.ID, "a list has at least 2 entries"))
+			case repeatStart(n)+int(v)-1 > maxListNumber:
+				ps = append(ps, errorf(n.ID, "a list goes up to entry %d at most (this one: %d to %d)", maxListNumber, repeatStart(n), repeatStart(n)+int(v)-1))
 			case inList:
 				ps = append(ps, errorf(n.ID, "a list cannot be inside another list"))
 			default:
@@ -167,7 +169,9 @@ func validateProject(p *Project) []Problem {
 				ps = append(ps, errorf(n.ID, "an image has no WA image ID"))
 			}
 		case "field":
-			ps = append(ps, validateField(n, names)...)
+			// Fields in lists may share a name (a list split over several cards);
+			// their numbered WA names are checked for clashes below.
+			ps = append(ps, validateField(n, names, inList)...)
 			if propBool(n, "required") {
 				if propString(n, "name") != "name" || propString(n, "fieldType") != "string" {
 					ps = append(ps, errorf(n.ID, "only the string field \"name\" can be required"))
@@ -202,15 +206,17 @@ func validateProject(p *Project) []Problem {
 	return ps
 }
 
-func validateField(n *Node, names map[string]string) []Problem {
+func validateField(n *Node, names map[string]string, inList bool) []Problem {
 	var ps []Problem
 	name := propString(n, "name")
 	if err := validateFieldName(name); err != nil {
 		ps = append(ps, errorf(n.ID, "%v", err))
-	} else if _, dup := names[name]; dup {
+	} else if _, dup := names[name]; dup && !inList {
 		ps = append(ps, errorf(n.ID, "two fields are named %q", name))
 	}
-	names[name] = n.ID
+	if !inList {
+		names[name] = n.ID
+	}
 	ft := propString(n, "fieldType")
 	if !fieldTypes[ft] {
 		ps = append(ps, errorf(n.ID, "field %q has an unknown type %q", name, ft))

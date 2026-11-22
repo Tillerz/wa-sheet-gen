@@ -192,6 +192,7 @@ Classes: sheet uses `lbl` / `var`, form uses `ilbl` / `ivar`, plus a per-field c
   - from the palette into any allowed target (5.1)
   - moving existing elements: rows up/down, cols left/right, any element into another allowed container
   - a drop indicator shows where the element will land; disallowed targets show no indicator
+- **Moving a covered element**: a drag that starts inside the selected element moves the selected element. So a table (covered by its cells) is moved by selecting it in the path bar and dragging anywhere inside it.
 - **Double-click** edits text in place (static text, labels, card-header text, li, cells).
 - **Right-click** menu per element: delete, duplicate, format, plus the element's own actions (5.3, 5.4).
 - **Duplicate** copies an element. Copied fields get a new unique name (a numeric suffix is added or increased: `weapon` → `weapon_2`). For many numbered entries, use lists (section 11, version 2).
@@ -307,8 +308,10 @@ Runs on export and on demand (a "Check" button), with a list of problems that li
 
 Sheets often repeat a block, e.g. 10 skills or 4 weapons. Version 2 exports these as a Twig loop around one block, as the examples do, instead of 10 copies.
 
-- Rows, cols, cards, table rows and list items can be lists: right-click → **Make list…** (or "Repeat" in the properties panel) → number of entries, 2–99. With anything inside selected (e.g. a field in a table row), the panel and the right-click menu offer the list for the nearest element around it that can repeat (or the list it is already in). The canvas shows the block once with a "× N" badge; the Sheet and Form previews show all entries.
+- Rows, cols, cards, table rows and list items can be lists: right-click → **Make list…** (or "From entry / To entry" in the properties panel) → a number (20) or a range (21-40). At least 2 entries, up to entry 199. The loop is `{% for i in 21..40 %}`; the fields become `weapon_021` … `weapon_040`. With anything inside selected (e.g. a field in a table row), the panel and the right-click menu offer the list for the nearest element around it that can repeat (or the list it is already in). The canvas shows the block once with a "× N" badge; the Sheet and Form previews show all entries.
 - A list cannot be inside another list, and the `name` field cannot be inside a list.
+- **Long lists split over cards** (1–20, 21–40, 41–60): fields in lists may share a name; the checker makes sure their numbered WA names do not overlap. **Duplicate** continues every list in the copy, also a list inside it (e.g. the list row of a duplicated table or card): same field names, the next range (1–20 → 21–40). Fields outside lists in the copy get new names; a field duplicated inside a list still gets a new name.
+- Fields in lists show a small ☰ mark in the canvas; its tooltip names the WA fields (`weapon_021 … weapon_040`).
 - The fields inside get numbered names on WA: `weapon_name` → `weapon_name_001` … `weapon_name_004` (3 digits, as in the examples).
 - Twig output, following the examples:
 

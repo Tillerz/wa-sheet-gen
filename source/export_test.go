@@ -133,7 +133,10 @@ func TestValidationErrors(t *testing.T) {
 		"list on a text": {func(p *Project) {
 			p.Root.Children[0].Children[0].Children[0].Children[0].Children[0].Props["repeat"] = 3.0
 		}, "cannot be a list"},
-		"list too long": {func(p *Project) { p.Root.Children[0].Props = map[string]any{"repeat": 120.0} }, "2 to 99"},
+		"list too long": {func(p *Project) { p.Root.Children[0].Props = map[string]any{"repeat": 250.0} }, "up to entry 199"},
+		"list start too high": {func(p *Project) {
+			p.Root.Children[0].Props = map[string]any{"repeat": 20.0, "repeatStart": 190.0}
+		}, "this one: 190 to 209"},
 		"list in list": {func(p *Project) {
 			p.Root.Children[0].Props = map[string]any{"repeat": 2.0}
 			p.Root.Children[0].Children[0].Props["repeat"] = 2.0
@@ -241,5 +244,40 @@ func TestPreviewAPI(t *testing.T) {
 	}
 	if !strings.Contains(res.CSS, "@font-face") || !strings.Contains(res.CSS, ".block-test-sheet .f-1") {
 		t.Errorf("css: %s", res.CSS)
+	}
+}
+
+// A long list split over two cards: same field names, ranges 1..20 and 21..40.
+func TestSplitListSharesFieldNames(t *testing.T) {
+	p := newProject()
+	card := func(id string, start float64) *Node {
+		return &Node{ID: id, Type: "col", Props: map[string]any{"col": 6.0, "repeat": 20.0, "repeatStart": start}, Children: []*Node{
+			{ID: id + "f", Type: "field", Props: map[string]any{"fieldType": "string", "name": "weapon", "label": "Weapon"}}}}
+	}
+	p.Root.Children = append(p.Root.Children, &Node{ID: "r", Type: "row", Children: []*Node{card("a", 1), card("b", 21)}})
+	files, ps := buildExport(p)
+	if files == nil {
+		t.Fatalf("split list must export: %s", problemsText(ps))
+	}
+	if !strings.Contains(files["basic-sheet.html.twig"], "{% for i in 21..40 %}") {
+		t.Errorf("second loop range missing")
+	}
+	yaml := files["import-to-wa.yml"]
+	for _, want := range []string{"  weapon_001:", "  weapon_020:", "  weapon_021:", "  weapon_040:"} {
+		if !strings.Contains(yaml, want) {
+			t.Errorf("yaml misses %q", want)
+		}
+	}
+	if strings.Count(yaml, "  weapon_021:") != 1 {
+		t.Errorf("weapon_021 written twice")
+	}
+	sheet, _ := previewHTML(p)
+	if strings.Count(sheet, "var-weapon") != 40 || !strings.Contains(sheet, "Sample Weapon 40") {
+		t.Errorf("preview should show 40 weapons")
+	}
+	// overlapping ranges clash
+	p.Root.Children[1].Children[1].Props["repeatStart"] = 15.0
+	if _, ps := buildExport(p); !strings.Contains(problemsText(ps), "\"weapon_015\" is used twice") {
+		t.Errorf("overlap not reported: %s", problemsText(ps))
 	}
 }

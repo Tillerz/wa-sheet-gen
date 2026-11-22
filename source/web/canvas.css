@@ -162,3 +162,18 @@ i.fa-square::before { content: "☐"; font-style: normal; }
 /* Lists (repeated blocks) */
 .ed-repeat { box-shadow: inset 0 0 0 2px rgba(240, 160, 32, 0.55); }
 .ed-repeat.ed-hover::before, .ed-repeat.ed-selected::before { background: #c07d10; }
+
+/* A mark on fields in lists (editor only) */
+.ed-listmark {
+  position: absolute;
+  top: 2px;
+  right: 2px;
+  font: 11px/1 system-ui, sans-serif;
+  color: #ffffff;
+  background: #c07d10;
+  border-radius: 3px;
+  padding: 2px 4px;
+  cursor: help;
+  opacity: 0.85;
+}
+body.preview .ed-listmark { display: none; }
