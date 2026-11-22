@@ -19,6 +19,9 @@ var (
 	presetSetRe = regexp.MustCompile(`(?m)^[ ]*\{% set preset_([a-z0-9_]+) = \[(.*)\] %\}\n`)
 	presetUseRe = regexp.MustCompile(`preset_([a-z0-9_]+)\[i - ([0-9]+)\]\|default`)
 	twigItemRe  = regexp.MustCompile(`'((?:[^'\\]|\\.)*)'`)
+	// {% if variables.a_001|default or variables.b_001|default %} … {% endif %} (hide empty list entries)
+	twigIfAnyRe = regexp.MustCompile(`(?s)\{% if ((?:variables\.[a-z0-9_]+\|default(?: or )?)+) %\}(.*?)\{% endif %\}`)
+	twigVarName = regexp.MustCompile(`variables\.([a-z0-9_]+)`)
 	bbImgRe     = regexp.MustCompile(`\[img:([0-9]+)\]`)
 	twigUnquote = strings.NewReplacer(`\'`, `'`, `\\`, `\`)
 	twigLoopRe  = regexp.MustCompile(`(?s)\{% for i in ([0-9]+)\.\.([0-9]+) %\}\n[ ]*` + regexp.QuoteMeta(loopIDLine) + `\n(.*?)[ ]*\{% endfor %\}\n`)
@@ -76,6 +79,12 @@ func sampleData(p *Project) map[string]string {
 	return vars
 }
 
+// isPositiveText is Twig's truth for a stored value: empty and "0" are false.
+func isPositiveText(s string) bool {
+	s = strings.TrimSpace(s)
+	return s != "" && s != "0"
+}
+
 func isPositive(s string) bool {
 	s = strings.TrimSpace(s)
 	return s != "" && s != "0" && !strings.HasPrefix(s, "-")
@@ -125,6 +134,16 @@ func renderPreview(twig string, vars map[string]string) string {
 		g := twigIfEqRe.FindStringSubmatch(m)
 		if vars[g[1]] == twigUnquote.Replace(g[2]) {
 			return g[3]
+		}
+		return ""
+	})
+	// After the inner ifs are gone, the next {% endif %} belongs to the entry condition.
+	out = twigIfAnyRe.ReplaceAllStringFunc(out, func(m string) string {
+		g := twigIfAnyRe.FindStringSubmatch(m)
+		for _, v := range twigVarName.FindAllStringSubmatch(g[1], -1) {
+			if isPositiveText(vars[v[1]]) {
+				return g[2]
+			}
 		}
 		return ""
 	})

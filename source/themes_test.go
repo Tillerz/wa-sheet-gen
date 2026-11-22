@@ -19,7 +19,7 @@ func TestThemesPassWARules(t *testing.T) {
 		}
 		for _, want := range []string{
 			".block-test\n{", "border: ", ".block-test .card\n{", ".block-test .card-header\n{",
-			".block-test .lbl,\n.block-test .ilbl\n{", ".block-test .var\n{", ".block-test .form-control\n{",
+			".block-test .lbl,\n.block-test .ilbl\n{", ".block-test .var\n{", ".block-test .form-control\n{", "color: " + th.InputText + " !important",
 			".block-test .table tr:nth-child(even)\n{", "li:nth-child(even)",
 			".block-test .card-body\n{", "background: transparent",
 			".block-test .table th,\n.block-test .table td\n{", ".block-test .table tr:nth-child(n)\n{",

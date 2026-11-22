@@ -354,7 +354,14 @@ func (g *twigGen) node(n *Node, parent *Node, depth int) {
 		g.line(depth, fmt.Sprintf("{%% for i in %d..%d %%}", start, start+count-1))
 		g.line(depth+1, loopIDLine)
 		g.loop = true
-		g.nodeInner(n, parent, depth+1)
+		// Sheet only: an entry without any value is not shown (the form shows all entries).
+		if cond := g.entryHasValue(n); cond != "" && !g.form {
+			g.line(depth+1, "{% if "+cond+" %}")
+			g.nodeInner(n, parent, depth+1)
+			g.line(depth+1, "{% endif %}")
+		} else {
+			g.nodeInner(n, parent, depth+1)
+		}
 		g.loop = false
 		g.line(depth, "{% endfor %}")
 		return
@@ -467,6 +474,29 @@ func (g *twigGen) nameAttr(name string) string {
 		return name + "_{{id}}"
 	}
 	return name
+}
+
+// entryHasValue is the Twig condition "this list entry has a value": its data fields
+// joined with "or". Empty when every entry must show: the list keeps empty entries
+// (props.showEmpty), it has no data fields, or a field has preset values (they always
+// have something to show).
+func (g *twigGen) entryHasValue(list *Node) string {
+	if propBool(list, "showEmpty") {
+		return ""
+	}
+	var conds []string
+	preset := false
+	eachField(list, func(f *Node) {
+		if hasPreset(f) {
+			preset = true
+			return
+		}
+		conds = append(conds, g.varExpr(propString(f, "name"))+"|default")
+	})
+	if preset {
+		return ""
+	}
+	return strings.Join(conds, " or ")
 }
 
 // hasPreset: a string field with preset values (bible 11, preset values in lists).

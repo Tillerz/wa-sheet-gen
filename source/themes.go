@@ -137,10 +137,12 @@ func themeCSS(t *Theme, root string) string {
 	}
 	rule(root+" .lbl, "+root+" .ilbl", label...)
 	rule(root+" .var", "color: "+t.Value)
+	// WA's site CSS sets input colors with !important (dark mode: grey on grey), so the theme
+	// needs !important too; it wins because it is more specific (WA's template class + ours).
 	rule(root+" .form-control",
-		"background-color: "+t.InputBg,
-		"color: "+t.InputText,
-		"border-color: "+t.InputBorder)
+		"background-color: "+t.InputBg+" !important",
+		"color: "+t.InputText+" !important",
+		"border: 1px solid "+t.InputBorder+" !important")
 	// Rows carry the colors (card color, every second row the stripe color) and cells are
 	// transparent, so WA's own row and header colors (dark mode) never show through.
 	// Only classic CSS: WA's CSS processor drops rules with :is(), :where() or custom properties.

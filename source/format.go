@@ -206,6 +206,15 @@ func formatClasses(p *Project) (map[string]string, []string) {
 	return classes, order
 }
 
+// important adds !important to every declaration.
+func important(decls []string) []string {
+	out := make([]string, len(decls))
+	for i, d := range decls {
+		out[i] = d + " !important"
+	}
+	return out
+}
+
 // inputSelector selects a field's form input. Written out without :is(), which WA drops.
 func inputSelector(root, cls string) string {
 	return fmt.Sprintf("%s input.ivar-%s, %s textarea.ivar-%s, %s select.ivar-%s", root, cls, root, cls, root, cls)
@@ -238,9 +247,11 @@ func genFormatCSS(p *Project) string {
 		// only to the sheet value. The Input look comes later and overrides it.
 		value := fmtOf(n, "fmt")
 		text := cssDecls(value, false)
-		cssRule(&b, fmt.Sprintf("%s .var-%s, %s", root, cls, inputSelector(root, cls)), text)
-		cssRule(&b, fmt.Sprintf("%s .var-%s", root, cls), cssDecls(value, true)[len(text):])
-		cssRule(&b, inputSelector(root, cls), cssDecls(fmtOf(n, "fmtInput"), true))
+		cssRule(&b, fmt.Sprintf("%s .var-%s", root, cls), cssDecls(value, true))
+		// Inputs: !important, because WA's site CSS (dark mode) and the themes set input
+		// colors with !important; a field's own rule is more specific, so it wins.
+		cssRule(&b, inputSelector(root, cls), important(text))
+		cssRule(&b, inputSelector(root, cls), important(cssDecls(fmtOf(n, "fmtInput"), true)))
 	})
 	return b.String()
 }

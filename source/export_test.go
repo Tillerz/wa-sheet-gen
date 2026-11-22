@@ -335,13 +335,15 @@ func TestPresetSplitList(t *testing.T) {
 	}
 }
 
-// Value text formats also style the form input; the Input look comes later, so it wins.
+// Value text formats also style the form input (with !important, because WA's dark mode
+// sets input colors with !important); the Input look comes later, so it wins.
 func TestValueFormatsReachTheInput(t *testing.T) {
 	files, _ := buildExport(loadTestProject(t, "full.project.json"))
 	css := files["style.css"]
-	both := strings.Index(css, ".block-test-sheet .var-level,\n.block-test-sheet input.ivar-level,\n.block-test-sheet textarea.ivar-level,\n.block-test-sheet select.ivar-level\n{")
-	input := strings.Index(css, "}\n.block-test-sheet input.ivar-level,\n.block-test-sheet textarea.ivar-level,\n.block-test-sheet select.ivar-level\n{")
-	if both < 0 || input < 0 || both > input {
-		t.Errorf("value rule %d must come before the input rule %d:\n%s", both, input, css)
+	sel := ".block-test-sheet input.ivar-level,\n.block-test-sheet textarea.ivar-level,\n.block-test-sheet select.ivar-level\n{\n"
+	valueText := strings.Index(css, sel+"  text-align: right !important;")
+	inputLook := strings.Index(css, sel+"  background-color: #ffffff !important;")
+	if valueText < 0 || inputLook < 0 || valueText > inputLook {
+		t.Errorf("value text rule %d must come before the input look rule %d:\n%s", valueText, inputLook, css)
 	}
 }

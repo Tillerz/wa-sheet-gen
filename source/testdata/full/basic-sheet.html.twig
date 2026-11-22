@@ -101,6 +101,7 @@
     </div>
     {% for i in 1..2 %}
       {% set id = i %}{% if id < 10 %}{% set id = '0' ~ id %}{% endif %}{% if id < 100 %}{% set id = '0' ~ id %}{% endif %}
+      {% if attribute(variables, 'wound_' ~ id)|default or attribute(variables, 'trait_' ~ id)|default or attribute(variables, 'size_' ~ id)|default %}
       <div class='col-12 col-lg-6'>
         <div class='card'>
           <div class='card-body'>
@@ -113,6 +114,7 @@
           </div>
         </div>
       </div>
+      {% endif %}
     {% endfor %}
   </div>
 </div>

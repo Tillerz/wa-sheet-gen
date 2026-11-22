@@ -1054,6 +1054,17 @@ function renderSelection(node) {
     const toIn = h('input', { type: 'number', min: 2, max: T.maxListNumber, value: r > 1 ? b : '', placeholder: 'no list', disabled, oninput: apply });
     out.push(h('h3', { class: 'sub', textContent: target === node ? 'List' : `List (the ${what} around it)` }));
     out.push(h('div', { class: 'range-row' }, labeled('From entry', fromIn), labeled('To entry', toIn)), err);
+    if (r > 1) {
+      const hide = h('input', {
+        type: 'checkbox', checked: !target.props.showEmpty,
+        onchange: () => {
+          if (hide.checked) delete target.props.showEmpty;
+          else target.props.showEmpty = true;
+          changed();
+        },
+      });
+      out.push(h('label', { class: 'check' }, hide, h('span', { textContent: 'Hide empty entries in the sheet (the form always shows all). Entries with preset values always show.' })));
+    }
     out.push(h('p', { class: 'hint', textContent: 'Split a long list over cards: 1–20, 21–40, 41–60. Duplicate a list to continue the numbers.' }));
     if (target !== node) {
       out.push(h('div', { class: 'sel-actions' }, h('button', { type: 'button', textContent: `Select the ${what}`, onclick: () => editor.select(target.id) })));

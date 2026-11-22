@@ -95,3 +95,24 @@ func TestPresetValues(t *testing.T) {
 		t.Errorf("a preset-only field must have no input")
 	}
 }
+
+// Empty list entries are hidden in the sheet (not in the form), unless the list keeps them.
+func TestEmptyListEntriesHidden(t *testing.T) {
+	p := newProject()
+	p.Root.Children = append(p.Root.Children, &Node{ID: "r", Type: "row", Props: map[string]any{"repeat": 3.0}, Children: []*Node{
+		{ID: "c", Type: "col", Children: []*Node{
+			{ID: "a", Type: "field", Props: map[string]any{"fieldType": "string", "name": "weapon", "label": "Weapon"}},
+			{ID: "b", Type: "field", Props: map[string]any{"fieldType": "number", "name": "dmg", "label": "Damage"}}}}}})
+	sheet := renderPreview(genTwig(p, false), map[string]string{"weapon_002": "Bow", "dmg_003": "0"})
+	if strings.Count(sheet, "var-weapon") != 1 || !strings.Contains(sheet, ">Bow<") {
+		t.Errorf("only entry 2 has a value (0 counts as empty):\n%s", sheet)
+	}
+	form := renderPreview(genTwig(p, true), map[string]string{})
+	if strings.Count(form, "name='weapon_") != 3 {
+		t.Errorf("the form shows all entries")
+	}
+	p.Root.Children[1].Props["showEmpty"] = true
+	if strings.Contains(genTwig(p, false), "{% if attribute(variables, 'weapon_' ~ id)|default or") {
+		t.Errorf("showEmpty must keep every entry")
+	}
+}

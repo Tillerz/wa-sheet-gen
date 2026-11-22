@@ -45,10 +45,7 @@
   text-decoration: underline;
   font-size: 14px;
 }
-.block-test-sheet .var-level,
-.block-test-sheet input.ivar-level,
-.block-test-sheet textarea.ivar-level,
-.block-test-sheet select.ivar-level
+.block-test-sheet .var-level
 {
   text-align: right;
   font-size: 24px;
@@ -57,7 +54,14 @@
 .block-test-sheet textarea.ivar-level,
 .block-test-sheet select.ivar-level
 {
-  background-color: #ffffff;
-  border: 1px dashed currentColor;
+  text-align: right !important;
+  font-size: 24px !important;
+}
+.block-test-sheet input.ivar-level,
+.block-test-sheet textarea.ivar-level,
+.block-test-sheet select.ivar-level
+{
+  background-color: #ffffff !important;
+  border: 1px dashed currentColor !important;
 }
 .block-test-sheet .card-header { color: var(--dark) ; }
