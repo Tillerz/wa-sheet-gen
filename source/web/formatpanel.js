@@ -92,7 +92,8 @@ function numberField(value, min, max, placeholder, onSet) {
 //   look: active field look; setLook(look) switches it
 //   set(key, prop, value): stores one format value ('' or false removes it)
 //   refresh(): rebuilds the panel (after toggles)
-export function buildFormat({ node, look, setLook, rules, fonts, set, refresh }) {
+//   inherited: { font, size } the element inherits, shown when it has no own value (or null)
+export function buildFormat({ node, look, setLook, rules, fonts, set, refresh, inherited }) {
   const key = fmtKeyFor(node, look);
   // cur() reads the live format; m is only used for the initial control values.
   const cur = () => (node.props && node.props[key]) || {};
@@ -101,8 +102,11 @@ export function buildFormat({ node, look, setLook, rules, fonts, set, refresh })
   const out = [];
 
   if (node.type === 'field') {
+    // A dot marks the looks that have formatting.
+    const used = (k) => node.props && node.props[k] && Object.keys(node.props[k]).length > 0;
     out.push(el('div', { class: 'segmented fmt-looks' }, ...fieldLooks.map(([k, label]) => el('button', {
-      type: 'button', textContent: label, class: k === look ? 'active' : '',
+      type: 'button', textContent: label + (used(k) ? ' •' : ''), class: k === look ? 'active' : '',
+      title: used(k) ? 'Has formatting' : '',
       onclick: () => setLook(k),
     }))));
   }
@@ -116,10 +120,11 @@ export function buildFormat({ node, look, setLook, rules, fonts, set, refresh })
     toggle('I', 'Italic', m.italic, () => { put('italic', !cur().italic); refresh(); }, 'i'),
     toggle('U', 'Underline', m.underline, () => { put('underline', !cur().underline); refresh(); }, 'u')));
   out.push(row('Color', colorField(m.color, rules.colorRe, (v) => put('color', v))));
-  out.push(row('Size', numberField(m.size, 1, 200, 'px', (v) => put('size', v))));
+  const inh = inherited || {};
+  out.push(row('Size', numberField(m.size, 1, 200, inh.size ? `inherit: ${inh.size}` : 'px', (v) => put('size', v))));
 
   const fontSel = el('select', { onchange: () => put('font', fontSel.value) },
-    el('option', { value: '', textContent: '(inherit)' }),
+    el('option', { value: '', textContent: inh.font ? `(inherit: ${inh.font})` : '(inherit)' }),
     ...fonts.map((f) => el('option', { value: f, textContent: f })));
   if (m.font && !fonts.includes(m.font)) fontSel.append(el('option', { value: m.font, textContent: `${m.font} (not in font list)` }));
   fontSel.value = m.font || '';

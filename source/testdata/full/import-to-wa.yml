@@ -56,6 +56,22 @@ fields:
     label: "skill 003"
     input: integer
     description: "skill 003"
+  weapon_001:
+    label: "Weapon 001"
+    input: string
+    description: "Weapon 001"
+  weapon_002:
+    label: "Weapon 002"
+    input: string
+    description: "Weapon 002"
+  damage_001:
+    label: "damage 001"
+    input: string
+    description: "damage 001"
+  damage_002:
+    label: "damage 002"
+    input: string
+    description: "damage 002"
   wound_001:
     label: "wound 001"
     input: checkbox

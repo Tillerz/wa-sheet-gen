@@ -71,6 +71,44 @@ function snapshot() {
 function updateDirty() {
   state.dirty = snapshot() !== undoHistory.saved;
   updateTitle();
+  scheduleAutosave();
+}
+
+// ---------- autosave: unsaved work survives a reload or a crash ----------
+
+let autosaveTimer;
+
+function scheduleAutosave() {
+  clearTimeout(autosaveTimer);
+  autosaveTimer = setTimeout(() => {
+    const req = state.dirty
+      ? api('PUT', '/api/autosave', { project: state.project, folder: state.folder, at: Date.now() })
+      : api('DELETE', '/api/autosave');
+    req.catch(() => {});
+  }, 800);
+}
+
+// restoreAutosave offers unsaved work from the last session. Returns true if restored.
+async function restoreAutosave() {
+  let saved;
+  try {
+    saved = await api('GET', '/api/autosave');
+  } catch {
+    return false;
+  }
+  if (!saved || !saved.project || !saved.project.root) return false;
+  const when = saved.at ? new Date(saved.at).toLocaleString() : 'an earlier session';
+  const name = saved.folder ? baseName(saved.folder) : saved.project.sheetName;
+  if (!confirm(`There are unsaved changes of "${name}" from ${when}.\n\nRestore them?`)) {
+    api('DELETE', '/api/autosave').catch(() => {});
+    return false;
+  }
+  setProject(saved.project, saved.folder || '');
+  // The restored work is not saved yet: keep it marked as unsaved.
+  undoHistory.saved = '';
+  updateDirty();
+  toast('Unsaved changes restored.');
+  return true;
 }
 
 function updateUndoButtons() {
@@ -229,7 +267,12 @@ const editor = createEditor({
   iframe: $('canvas'),
   getProject: () => state.project,
   onChange: () => noteChange(true),
-  onSelect: renderSelection,
+  onSelect: (node, part) => {
+    // A click on a field's label or value opens that look in the format panel.
+    if (part === 'label') ui.look = 'fmtLabel';
+    else if (part === 'value') ui.look = 'fmt';
+    renderSelection(node);
+  },
   openMenu,
   setFieldLabel,
   getFormatClass: (id) => state.formatClasses[id] || '',
@@ -707,13 +750,31 @@ function changed() {
   editor.render();
 }
 
+// breadcrumb shows the path from the sheet root to node. Each part selects that element,
+// e.g. a table, which its cells cover completely in the canvas.
+function breadcrumb(node) {
+  const path = [];
+  for (let n = T.find(state.project.root, node.id); n; n = n.parent ? T.find(state.project.root, n.parent.id) : null) {
+    path.unshift(n.node);
+  }
+  const parts = [];
+  path.forEach((p, i) => {
+    if (i) parts.push(h('span', { class: 'crumb-sep', textContent: '›' }));
+    const name = p.type === 'container' ? 'Sheet' : typeNames[p.type] || p.type;
+    parts.push(p === node
+      ? h('span', { class: 'crumb current', textContent: name })
+      : h('button', { type: 'button', class: 'crumb', textContent: name, title: 'Select this ' + name.toLowerCase(), onclick: () => editor.select(p.id) }));
+  });
+  return h('div', { class: 'crumbs' }, ...parts);
+}
+
 function renderSelection(node) {
   const box = $('selection');
   if (!node) {
     box.replaceChildren(h('p', { class: 'hint', textContent: 'Click an element in the sheet to select it.' }));
     return;
   }
-  const out = [h('div', { class: 'sel-type', textContent: typeNames[node.type] || node.type })];
+  const out = [breadcrumb(node), h('div', { class: 'sel-type', textContent: typeNames[node.type] || node.type })];
   const p = (node.props ||= {});
 
   if (node.type === 'col') {
@@ -795,39 +856,61 @@ function renderSelection(node) {
     out.push(h('p', { class: 'hint', textContent: f
       ? `Shows the label of the field "${f.node.props.name}". Edit or format it there (Label look).`
       : 'Its field no longer exists. Delete this label.' }));
-    if (f) out.push(h('div', { class: 'sel-actions' }, h('button', { type: 'button', textContent: 'Select field', onclick: () => editor.select(f.node.id) })));
+    if (f) out.push(h('div', { class: 'sel-actions' }, h('button', { type: 'button', textContent: 'Select field', onclick: () => editor.select(f.node.id, 'label') })));
+  }
+
+  if (node.type === 'table') {
+    const mode = T.labelMode(state.project.root, node.id);
+    out.push(labeled('Field labels', h('div', { class: 'segmented' },
+      ...[['left', 'Left of each field'], ['top', 'On top']].map(([m, text]) => h('button', {
+        type: 'button', textContent: text, class: m === mode ? 'active' : '',
+        onclick: () => {
+          T.setLabelMode(state.project.root, node.id, m);
+          noteChange(true);
+          editor.render();
+          renderSelection(node);
+        },
+      })))));
+    out.push(h('p', { class: 'hint', textContent: mode === 'top'
+      ? 'A field takes one cell; its label goes into the header row (first row) above it, if that cell is empty.'
+      : 'A field takes two cells: its label in a th, its input in the next td.' }));
   }
 
   if (['table', 'tr', 'th', 'td'].includes(node.type)) {
-    out.push(h('p', { class: 'hint', textContent: 'Right-click for rows, columns and cell type. Drop a field into a cell: that cell becomes the label (th), the next cell holds the input (td). Double-click an empty cell to type text.' }));
+    out.push(h('p', { class: 'hint', textContent: 'Right-click for rows, columns and cell type. Double-click an empty cell to type text.' }));
   }
   if (['ul', 'ol', 'li'].includes(node.type)) {
     out.push(h('p', { class: 'hint', textContent: 'Right-click to add items. Double-click an empty item to type text. Fields can go into items.' }));
   }
 
-  if (T.repeatTypes.has(node.type)) {
-    const problem = T.listProblem(state.project.root, node);
-    const r = T.repeatCount(node);
+  // List: for the element itself, or for the row, col, card, … around it.
+  const target = T.repeatTarget(state.project.root, node.id);
+  if (target) {
+    const problem = T.listProblem(state.project.root, target);
+    const r = T.repeatCount(target);
+    const what = T.repeatNames[target.type];
     const input = h('input', {
       type: 'number', min: 1, max: 99, value: r > 1 ? r : '', placeholder: 'no list',
       disabled: !!problem && r < 2,
       oninput: () => {
         const v = Number(input.value);
         if (input.value === '' || (v >= 1 && v <= 99)) {
-          T.setRepeat(node, input.value);
+          T.setRepeat(target, input.value);
           changed();
         }
       },
     });
     out.push(h('h3', { class: 'sub', textContent: 'List' }));
-    out.push(labeled('Repeat (entries)', input));
+    out.push(labeled(target === node ? 'Repeat (entries)' : `Repeat the ${what} around it (entries)`, input));
+    if (target !== node) {
+      out.push(h('div', { class: 'sel-actions' }, h('button', { type: 'button', textContent: `Select the ${what}`, onclick: () => editor.select(target.id) })));
+    }
     out.push(h('p', { class: 'hint', textContent: problem && r < 2
-      ? problem
+      ? `The ${what} cannot repeat: ${problem}`
       : 'Exported once inside a Twig loop. Fields inside get _001, _002, … on WA. Empty = no list.' }));
   }
 
   if (canFormat(node)) {
-    if (node.type !== 'field') ui.look = 'fmt';
     const fonts = (state.project.fonts || []).map((f) => f.name).filter(Boolean);
     out.push(h('h3', { class: 'sub', id: 'fmtSection', textContent: 'Format' }));
     out.push(...buildFormat({
@@ -838,6 +921,7 @@ function renderSelection(node) {
       fonts,
       set: (key, prop, value) => setFmt(node, key, prop, value),
       refresh: () => renderSelection(node),
+      inherited: editor.inherited(node.id, node.type === 'field' ? ui.look : 'fmt'),
     }));
   }
 
@@ -1178,7 +1262,7 @@ async function start() {
     await loadSettings();
     const info = await api('GET', '/api/info');
     $('appVersion').textContent = 'v' + info.version;
-    setProject(await api('GET', '/api/project/new'), '');
+    if (!(await restoreAutosave())) setProject(await api('GET', '/api/project/new'), '');
   } catch (e) {
     toast(e.message, true);
   }

@@ -277,3 +277,22 @@ func TestSettingsRoundTrip(t *testing.T) {
 		t.Errorf("settings need the token: %d", rec.Code)
 	}
 }
+
+func TestAutosaveRoundTrip(t *testing.T) {
+	h := testHandler(t)
+	if rec := do(t, h, "GET", "/api/autosave", testToken, nil); strings.TrimSpace(rec.Body.String()) != "{}" {
+		t.Fatalf("empty autosave: %q", rec.Body)
+	}
+	body := map[string]any{"folder": "C:\\x", "project": newProject(), "at": 123}
+	if rec := do(t, h, "PUT", "/api/autosave", testToken, body); rec.Code != 200 {
+		t.Fatalf("put: %d %s", rec.Code, rec.Body)
+	}
+	rec := do(t, h, "GET", "/api/autosave", testToken, nil)
+	if !strings.Contains(rec.Body.String(), `"sheetName":"new-sheet"`) {
+		t.Errorf("get: %s", rec.Body)
+	}
+	do(t, h, "DELETE", "/api/autosave", testToken, nil)
+	if rec := do(t, h, "GET", "/api/autosave", testToken, nil); strings.TrimSpace(rec.Body.String()) != "{}" {
+		t.Errorf("after delete: %q", rec.Body)
+	}
+}

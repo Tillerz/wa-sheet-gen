@@ -207,6 +207,7 @@ type twigGen struct {
 	classes map[string]string // node id → format class (f-N)
 	fields  map[string]*Node  // field node id → field, for field labels
 	loop    bool              // inside a {% for %} list: field names get _{{id}}
+	inList  map[string]bool   // field ids inside a list
 }
 
 // cls returns " f-N" for a formatted element, or "".
@@ -236,6 +237,12 @@ func genTwig(p *Project, form bool) string {
 	classes, _ := formatClasses(p)
 	g := &twigGen{form: form, sheet: p.SheetName, classes: classes, fields: map[string]*Node{}}
 	eachField(p.Root, func(n *Node) { g.fields[n.ID] = n })
+	g.inList = map[string]bool{}
+	eachFieldEntry(p.Root, func(n *Node, suffix string) {
+		if suffix != "" {
+			g.inList[n.ID] = true
+		}
+	})
 	g.node(p.Root, nil, 0)
 	return g.b.String()
 }
@@ -362,7 +369,10 @@ func (g *twigGen) nodeInner(n *Node, parent *Node, depth int) {
 			return
 		}
 		name := propString(f, "name")
-		if g.form {
+		if g.form && g.inList[f.ID] && !g.loop {
+			// A header label of a list field sits outside the loop: it belongs to all entries.
+			g.line(depth, fmt.Sprintf("<label class='ilbl ilbl-%s'>%s</label>", fieldClass(name), label))
+		} else if g.form {
 			g.line(depth, fmt.Sprintf("<label class='ilbl ilbl-%s' for='%s'>%s</label>", fieldClass(name), g.nameAttr(name), label))
 		} else {
 			g.line(depth, fmt.Sprintf("<div class='lbl lbl-%s'>%s</div>", fieldClass(name), label))

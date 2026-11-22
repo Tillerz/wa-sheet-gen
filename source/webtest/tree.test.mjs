@@ -323,3 +323,61 @@ test('lists: allowed types, nesting and the name field', () => {
   assert.equal(col.props.repeat, undefined);
   assert.equal(t.listOf(r, tb.id), null);
 });
+
+test('labels on top: header row gets the labels, fields take one cell', () => {
+  const r = sample();
+  const tb = tableIn(r);
+  t.setLabelMode(r, tb.id, 'top');
+  const [head, data] = tb.children;
+  const name = t.createField(r, 'string', t.idGen(r));
+  t.insert(r, data.children[0].id, 0, name);
+  const val = t.createField(r, 'number', t.idGen(r));
+  t.insert(r, data.children[1].id, 0, val);
+  assert.equal(data.children.length, 2, 'no extra cells');
+  assert.equal(data.children[0].children[0], name);
+  assert.deepEqual(head.children.map((c) => [c.type, c.children[0].type, c.children[0].props.field]),
+    [['th', 'flabel', name.id], ['th', 'flabel', val.id]]);
+  // a header cell with text stays as it is
+  head.children[1].children = [{ id: 'nx1', type: 'text', props: { text: 'Value' } }];
+  t.move(r, val.id, data.children[1].id, 0);
+  assert.equal(head.children[1].children[0].props.text, 'Value');
+});
+
+test('labels on top: a field in the first row gets a new header row', () => {
+  const r = sample();
+  const tb = tableIn(r);
+  t.setLabelMode(r, tb.id, 'top');
+  const f = t.createField(r, 'string', t.idGen(r));
+  t.insert(r, tb.children[0].children[1].id, 0, f);
+  assert.equal(tb.children.length, 3);
+  assert.equal(tb.children[0].children[1].children[0].props.field, f.id);
+});
+
+test('switching label mode moves the labels', () => {
+  const r = sample();
+  const tb = tableIn(r);
+  const f = t.createField(r, 'string', t.idGen(r));
+  t.insert(r, tb.children[1].children[0].id, 0, f); // left: label in [1][0], field in [1][1]
+  assert.equal(tb.children[1].children[0].children[0].type, 'flabel');
+  t.setLabelMode(r, tb.id, 'top');
+  assert.equal(t.labelMode(r, f.id), 'top');
+  assert.equal(t.fieldLabels(r, f.id).length, 1);
+  assert.equal(tb.children[0].children[1].children[0].props.field, f.id, 'label now above the field');
+  assert.equal(tb.children[1].children[0].children.length, 0, 'old label cell is empty');
+  t.setLabelMode(r, tb.id, 'left');
+  assert.equal(tb.props.labels, undefined);
+  assert.equal(tb.children[1].children[0].children[0].props.field, f.id, 'label back on the left');
+});
+
+test('repeatTarget: the element itself, the one around it, or the list it is in', () => {
+  const r = sample();
+  const tb = tableIn(r);
+  const f = t.createField(r, 'string', t.idGen(r));
+  t.setLabelMode(r, tb.id, 'top');
+  t.insert(r, tb.children[1].children[0].id, 0, f);
+  assert.equal(t.repeatTarget(r, f.id), tb.children[1], 'the table row');
+  assert.equal(t.repeatTarget(r, tb.children[1].id), tb.children[1]);
+  t.setRepeat(t.find(r, 'n5').node, 3); // make the col a list
+  assert.equal(t.repeatTarget(r, f.id).id, 'n5', 'the list it is already in');
+  assert.equal(t.repeatTarget(r, 'n1'), null, 'nothing around the sheet root');
+});

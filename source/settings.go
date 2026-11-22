@@ -3,6 +3,7 @@ package main
 import (
 	"encoding/json"
 	"errors"
+	"io"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -64,6 +65,69 @@ func (st *settingsStore) put(w http.ResponseWriter, r *http.Request) {
 	if err := os.WriteFile(st.path, data, 0o644); err != nil {
 		writeError(w, http.StatusInternalServerError, err)
 		return
+	}
+	writeJSON(w, map[string]bool{"ok": true})
+}
+
+// Autosave keeps unsaved work in autosave.json next to the settings file, so a reload
+// or a crash loses nothing. The UI writes it after changes and deletes it after saving.
+
+const maxAutosave = 16 << 20
+
+func (st *settingsStore) autosavePath() string {
+	if st.path == "" {
+		return ""
+	}
+	return filepath.Join(filepath.Dir(st.path), "autosave.json")
+}
+
+func (st *settingsStore) getAutosave(w http.ResponseWriter, r *http.Request) {
+	st.mu.Lock()
+	defer st.mu.Unlock()
+	data, err := os.ReadFile(st.autosavePath())
+	if err != nil || !json.Valid(data) {
+		writeJSON(w, map[string]any{})
+		return
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.Write(data)
+}
+
+func (st *settingsStore) putAutosave(w http.ResponseWriter, r *http.Request) {
+	path := st.autosavePath()
+	if path == "" {
+		writeError(w, http.StatusInternalServerError, errors.New("no settings folder"))
+		return
+	}
+	data, err := io.ReadAll(http.MaxBytesReader(w, r.Body, maxAutosave))
+	if err != nil || !json.Valid(data) {
+		writeError(w, http.StatusBadRequest, errors.New("autosave must be JSON"))
+		return
+	}
+	st.mu.Lock()
+	defer st.mu.Unlock()
+	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+		writeError(w, http.StatusInternalServerError, err)
+		return
+	}
+	// Write to a temp file first, so a crash during the write keeps the last autosave.
+	tmp := path + ".tmp"
+	if err := os.WriteFile(tmp, data, 0o644); err != nil {
+		writeError(w, http.StatusInternalServerError, err)
+		return
+	}
+	if err := os.Rename(tmp, path); err != nil {
+		writeError(w, http.StatusInternalServerError, err)
+		return
+	}
+	writeJSON(w, map[string]bool{"ok": true})
+}
+
+func (st *settingsStore) deleteAutosave(w http.ResponseWriter, r *http.Request) {
+	st.mu.Lock()
+	defer st.mu.Unlock()
+	if path := st.autosavePath(); path != "" {
+		os.Remove(path)
 	}
 	writeJSON(w, map[string]bool{"ok": true})
 }

@@ -209,13 +209,34 @@ export function createEditor({ iframe, getProject, onChange, onSelect, openMenu,
 
   // ---------- selection ----------
 
-  function select(id) {
+  // select selects element id. part ('label' or 'value') tells which part of a field was clicked.
+  function select(id, part) {
     selectedId = id && T.find(root(), id) ? id : null;
     if (doc) {
       doc.querySelectorAll('.ed-selected').forEach((e) => e.classList.remove('ed-selected'));
       if (selectedId) elsFor(selectedId).forEach((e) => e.classList.add('ed-selected'));
     }
-    onSelect(selectedId ? T.find(root(), selectedId).node : null);
+    onSelect(selectedId ? T.find(root(), selectedId).node : null, part);
+  }
+
+  // inherited returns the font and size an element would inherit (its parent's values in
+  // the canvas), for the format panel. look picks the part of a field. null if unknown.
+  function inherited(id, look) {
+    if (!doc || mode !== 'layout' || !id) return null;
+    let el = elsFor(id)[0];
+    if (!el) return null;
+    if (el.dataset.type === 'field') {
+      if (look === 'fmtInput') return null; // inputs only exist in the form preview
+      el = el.querySelector(look === 'fmtLabel' ? '.ed-label' : '.var') || el;
+    }
+    const parent = el.parentElement;
+    if (!parent) return null;
+    const win = doc.defaultView;
+    const cs = win.getComputedStyle(parent);
+    const first = (f) => f.split(',')[0].trim().replace(/^["']|["']$/g, '');
+    const font = first(cs.fontFamily) === first(win.getComputedStyle(doc.body).fontFamily) ? 'WA default' : first(cs.fontFamily);
+    const px = Math.round(parseFloat(cs.fontSize) * 10) / 10;
+    return { font, size: px ? `${px}px` : '' };
   }
 
   // ---------- breakpoints ----------
@@ -583,6 +604,9 @@ export function createEditor({ iframe, getProject, onChange, onSelect, openMenu,
         action: () => run(() => T.tableRemoveRow(root(), node.id), table.id),
       },
       { label: 'Add column', action: () => run(() => T.tableAddCol(root(), node.id), table.id) },
+      T.labelMode(root(), table.id) === 'top'
+        ? { label: 'Field labels: left of each field', action: () => run(() => T.setLabelMode(root(), table.id, 'left'), table.id) }
+        : { label: 'Field labels: on top (header row)', action: () => run(() => T.setLabelMode(root(), table.id, 'top'), table.id) },
       {
         label: 'Remove last column',
         disabled: T.tableCols(table) < 2,
@@ -620,19 +644,23 @@ export function createEditor({ iframe, getProject, onChange, onSelect, openMenu,
         && !T.fieldLabels(root(), node.id).length) {
       items.push({ label: 'Add label cell', action: () => run(() => T.addFieldLabel(root(), node.id), node.id) });
     }
-    if (T.repeatTypes.has(node.type)) {
-      const r = T.repeatCount(node);
-      const problem = T.listProblem(root(), node);
+    const target = T.repeatTarget(root(), node.id);
+    if (target) {
+      // The list applies to the element itself or to the row, col, card, … around it.
+      const r = T.repeatCount(target);
+      const problem = T.listProblem(root(), target);
+      const what = target === node ? '' : ` (${T.repeatNames[target.type]})`;
       if (r > 1) {
-        items.push({ label: `List size… (now ${r})`, action: () => askRepeat(node, r) });
-        items.push({ label: 'Stop list', action: () => run(() => T.setRepeat(node, 1), node.id) });
+        items.push({ label: `List size${what}… (now ${r})`, action: () => askRepeat(target, r) });
+        items.push({ label: `Stop list${what}`, action: () => run(() => T.setRepeat(target, 1), node.id) });
       } else {
-        items.push({ label: problem ? `Make list… (${problem})` : 'Make list…', disabled: !!problem, action: () => askRepeat(node, 3) });
+        const name = target === node ? 'Make list…' : `Make ${T.repeatNames[target.type]} a list…`;
+        items.push({ label: problem ? `${name} (${problem})` : name, disabled: !!problem, action: () => askRepeat(target, 3) });
       }
       items.push(null);
     }
     if (node.type === 'flabel' && T.find(root(), node.props.field)) {
-      items.push({ label: 'Select field', action: () => select(node.props.field) });
+      items.push({ label: 'Select field', action: () => select(node.props.field, 'label') });
     }
     if (inTable(node)) items.push(...tableItems(node), null);
     if (inList(node)) items.push({ label: 'Add item', action: () => run(() => T.listAddItem(root(), node.id).id) }, null);
@@ -706,7 +734,12 @@ export function createEditor({ iframe, getProject, onChange, onSelect, openMenu,
     if (!editable()) return;
     if (editing && editing.el.contains(e.target)) return;
     const el = e.target.closest && e.target.closest('[data-id]');
-    select(el ? el.dataset.id : root().id);
+    let part;
+    if (el && el.dataset.type === 'field') {
+      if (e.target.closest('.ed-label')) part = 'label';
+      else if (e.target.closest('.var')) part = 'value';
+    }
+    select(el ? el.dataset.id : root().id, part);
   }
 
   function onMouseOver(e) {
@@ -749,6 +782,7 @@ export function createEditor({ iframe, getProject, onChange, onSelect, openMenu,
     endDrag,
     duplicate: duplicateNode,
     remove: removeNode,
+    inherited,
     get selectedId() { return selectedId; },
     get editing() { return !!editing; },
   };

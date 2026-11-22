@@ -27,9 +27,7 @@ body {
 :where(#sheet) .card { margin: 4px 0; }
 
 :where(#sheet) .lbl {
-  font-size: 12px;
-  text-transform: uppercase;
-  opacity: 0.7;
+  opacity: 0.75; /* only a hint that this is a label; size and font are the real ones */
 }
 
 :where(#sheet) .ed-ph { color: #8a94a6; font-style: italic; }

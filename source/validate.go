@@ -152,6 +152,9 @@ func validateProject(p *Project) []Problem {
 			if len(n.Children) == 0 {
 				ps = append(ps, warnf(n.ID, "a table has no rows"))
 			}
+			if l := propString(n, "labels"); l != "" && l != "top" && l != "left" {
+				ps = append(ps, errorf(n.ID, "unknown table label position %q", l))
+			}
 		case "flabel":
 			if !fieldIDs[propString(n, "field")] {
 				ps = append(ps, errorf(n.ID, "a field label belongs to a field that no longer exists"))

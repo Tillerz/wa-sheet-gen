@@ -74,6 +74,25 @@
           </tr>
         {% endfor %}
       </table>
+      <table class='table'>
+        <tr>
+          <th>
+            <div class='lbl lbl-weapon'>Weapon</div>
+          </th>
+          <th>Damage</th>
+        </tr>
+        {% for i in 1..2 %}
+          {% set id = i %}{% if id < 10 %}{% set id = '0' ~ id %}{% endif %}{% if id < 100 %}{% set id = '0' ~ id %}{% endif %}
+          <tr>
+            <td>
+              <div class='var var-weapon'>{{attribute(variables, 'weapon_' ~ id)|default}}</div>
+            </td>
+            <td>
+              <div class='var var-damage'>{{attribute(variables, 'damage_' ~ id)|default}}</div>
+            </td>
+          </tr>
+        {% endfor %}
+      </table>
     </div>
     {% for i in 1..2 %}
       {% set id = i %}{% if id < 10 %}{% set id = '0' ~ id %}{% endif %}{% if id < 100 %}{% set id = '0' ~ id %}{% endif %}

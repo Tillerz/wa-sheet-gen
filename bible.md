@@ -160,6 +160,7 @@ Classes: sheet uses `lbl` / `var`, form uses `ilbl` / `ivar`, plus a per-field c
 
 - **Static text**: free text, edited by double-click.
 - **Static image**: a fixed WA image, `<img src='/i/<id>/render'>`, as in the nimble and dccarl headers. Optional width in px (`width='350'`).
+- **Field labels left / top** (table setting, panel or right-click): *left* (default) as described below. *Top*: a field takes only its own cell; its label goes as a field label into the header row (the first row of the table) in the same column, if that cell is empty; a field in the first row gets a new header row above it. Switching moves the labels of all fields in the table; cells stay. With a list row below the header row this gives tables like "Skill | Value" or weapon lists with many columns. A header label of a list field has no `for=` in the form (it belongs to all entries).
 - **Field in a table** (project version 2): cells always stay normal cells. A field with a label dropped into a cell splits over two cells: that cell becomes a `th` holding a **field label** (an element that shows the field's label), the next cell (made if missing) becomes a `td` holding the field. In a cell the field writes only its input/value. A field without a label goes into the cell as it is. Moving or deleting a field removes its field label; right-click "Add label cell" brings it back. Version 1 projects (field directly in a row) are converted on open.
 
 ### 5.2 Cols
@@ -185,7 +186,7 @@ Classes: sheet uses `lbl` / `var`, form uses `ilbl` / `ivar`, plus a per-field c
 
 - **Palette** (left): row, col, card, ul, ol, table, static text, static image, and one entry per field type.
 - **Canvas** (center): the sheet with real Bootstrap layout and the sheet's own CSS applied. Element outlines and type tags show on hover.
-- **Properties panel** (right): settings of the selected element (col widths, card class, field settings, …).
+- **Properties panel** (right): settings of the selected element (col widths, card class, field settings, …). A path bar on top (`Sheet › Row › … › Table › Table row › Data cell (td)`) selects any element above the current one, e.g. a table that its cells cover completely.
 - **Drag and drop**:
   - from the palette into any allowed target (5.1)
   - moving existing elements: rows up/down, cols left/right, any element into another allowed container
@@ -202,6 +203,8 @@ Classes: sheet uses `lbl` / `var`, form uses `ilbl` / `ivar`, plus a per-field c
 - **Canvas**: shows the real sheet CSS (made by the same Go code as the export, via `/api/preview`). Dark canvas by default, switchable to light (editor only, not exported). In the canvas, `--dark` is #222222 and `--light` is #f5f5f5; on WA the theme sets them.
 - **Version**: shown next to the app name at the top right; set in `source/version.go`.
 - **Settings** (recent sheets, last folder, canvas theme, outlines) are stored by the server in `%AppData%\wa-sheet-gen\settings.json`, not in the browser: the app gets a new port on every start, and browsers store per port.
+- **Autosave**: unsaved work is written to `autosave.json` next to the settings file about 1 second after each change (deleted after saving). After a reload or a crash the app asks whether to restore it; restored work stays marked as unsaved.
+- **Inherited values**: when an element has no own font or size, the format panel shows what it inherits, e.g. "(inherit: Grenze)" and "inherit: 28px" (read from the canvas; "WA default" when nothing in the sheet sets it).
 - **Open / Save as** dialog: a "Recent" list of the last 8 sheets (click: go there; double-click in Open: open it).
 - Look: modern, clean, light and dark mode, fast. No external JavaScript libraries.
 - Add mouse-over text to fields
@@ -294,14 +297,14 @@ Runs on export and on demand (a "Check" button), with a list of problems that li
 - The console window stays open while the app runs. Closing it quits the app.
 - Generation and validation run in Go and are covered by unit tests with golden files (expected output files).
 - File access (open, save, export) goes through the Go server. The UI shows a simple folder browser.
-- **Build** (from WSL/Linux, inside `source/`): `GOOS=windows GOARCH=amd64 go build -o ../wa-sheet-gen.exe .`
+- **Build**: `./build.sh` (all platforms into `dist/`, plus release archives), `./build.sh windows` (quick Windows build), `./test.sh` (all tests), `./release.sh` (GitHub release). See the README.
 - **Bootstrap 5.0.1**, the version WA uses. The canvas uses an embedded copy of `https://cdn.jsdelivr.net/npm/bootstrap@5.0.1/dist/css/bootstrap.min.css` (CSS only, no Bootstrap JavaScript). It is downloaded once during development and stored in the repo. The app makes no network calls at runtime, except loading font URLs on the canvas.
 
 ## 11. Version 2: lists
 
 Sheets often repeat a block, e.g. 10 skills or 4 weapons. Version 2 exports these as a Twig loop around one block, as the examples do, instead of 10 copies.
 
-- Rows, cols, cards, table rows and list items can be lists: right-click → **Make list…** (or "Repeat" in the properties panel) → number of entries, 2–99. The canvas shows the block once with a "× N" badge; the Sheet and Form previews show all entries.
+- Rows, cols, cards, table rows and list items can be lists: right-click → **Make list…** (or "Repeat" in the properties panel) → number of entries, 2–99. With anything inside selected (e.g. a field in a table row), the panel and the right-click menu offer the list for the nearest element around it that can repeat (or the list it is already in). The canvas shows the block once with a "× N" badge; the Sheet and Form previews show all entries.
 - A list cannot be inside another list, and the `name` field cannot be inside a list.
 - The fields inside get numbered names on WA: `weapon_name` → `weapon_name_001` … `weapon_name_004` (3 digits, as in the examples).
 - Twig output, following the examples:

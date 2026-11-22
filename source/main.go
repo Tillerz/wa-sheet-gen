@@ -4,6 +4,7 @@ import (
 	"crypto/rand"
 	"embed"
 	"encoding/hex"
+	"flag"
 	"fmt"
 	"io/fs"
 	"log"
@@ -18,6 +19,14 @@ import (
 var webFiles embed.FS
 
 func main() {
+	noBrowser := flag.Bool("no-browser", false, "do not open the browser (for tests)")
+	showVersion := flag.Bool("version", false, "print the version and quit")
+	flag.Parse()
+	if *showVersion {
+		fmt.Println("wa-sheet-gen " + appVersion)
+		return
+	}
+
 	tokenBytes := make([]byte, 16)
 	if _, err := rand.Read(tokenBytes); err != nil {
 		log.Fatal(err)
@@ -38,8 +47,10 @@ func main() {
 	fmt.Println("If no browser opens, open this address:")
 	fmt.Println("  " + url)
 	fmt.Println("Close this window to quit.")
-	if err := openBrowser(url); err != nil {
-		fmt.Println("Could not open the browser:", err)
+	if !*noBrowser {
+		if err := openBrowser(url); err != nil {
+			fmt.Println("Could not open the browser:", err)
+		}
 	}
 
 	srv := &http.Server{Handler: newServer(token, web, defaultSettingsPath()), ReadHeaderTimeout: 10 * time.Second}

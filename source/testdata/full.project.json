@@ -437,6 +437,86 @@
                     ]
                   }
                 ]
+              },
+              {
+                "id": "n80",
+                "type": "table",
+                "props": {
+                  "labels": "top"
+                },
+                "children": [
+                  {
+                    "id": "n81",
+                    "type": "tr",
+                    "children": [
+                      {
+                        "id": "n82",
+                        "type": "th",
+                        "children": [
+                          {
+                            "id": "n83",
+                            "type": "flabel",
+                            "props": {
+                              "field": "n86"
+                            }
+                          }
+                        ]
+                      },
+                      {
+                        "id": "n84",
+                        "type": "th",
+                        "children": [
+                          {
+                            "id": "n85",
+                            "type": "text",
+                            "props": {
+                              "text": "Damage"
+                            }
+                          }
+                        ]
+                      }
+                    ]
+                  },
+                  {
+                    "id": "n87",
+                    "type": "tr",
+                    "props": {
+                      "repeat": 2
+                    },
+                    "children": [
+                      {
+                        "id": "n88",
+                        "type": "td",
+                        "children": [
+                          {
+                            "id": "n86",
+                            "type": "field",
+                            "props": {
+                              "fieldType": "string",
+                              "name": "weapon",
+                              "label": "Weapon"
+                            }
+                          }
+                        ]
+                      },
+                      {
+                        "id": "n89",
+                        "type": "td",
+                        "children": [
+                          {
+                            "id": "n90",
+                            "type": "field",
+                            "props": {
+                              "fieldType": "string",
+                              "name": "damage",
+                              "label": ""
+                            }
+                          }
+                        ]
+                      }
+                    ]
+                  }
+                ]
               }
             ]
           },

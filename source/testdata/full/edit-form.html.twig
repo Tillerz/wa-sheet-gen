@@ -74,6 +74,25 @@
           </tr>
         {% endfor %}
       </table>
+      <table class='table'>
+        <tr>
+          <th>
+            <label class='ilbl ilbl-weapon'>Weapon</label>
+          </th>
+          <th>Damage</th>
+        </tr>
+        {% for i in 1..2 %}
+          {% set id = i %}{% if id < 10 %}{% set id = '0' ~ id %}{% endif %}{% if id < 100 %}{% set id = '0' ~ id %}{% endif %}
+          <tr>
+            <td>
+              <div class='ivar ivar-weapon'><input value='{{attribute(variables, 'weapon_' ~ id)|default}}' class='form-control ivar ivar-weapon' id='weapon_{{id}}' name='weapon_{{id}}' type='text' /></div>
+            </td>
+            <td>
+              <div class='ivar ivar-damage'><input value='{{attribute(variables, 'damage_' ~ id)|default}}' class='form-control ivar ivar-damage' id='damage_{{id}}' name='damage_{{id}}' type='text' /></div>
+            </td>
+          </tr>
+        {% endfor %}
+      </table>
     </div>
     {% for i in 1..2 %}
       {% set id = i %}{% if id < 10 %}{% set id = '0' ~ id %}{% endif %}{% if id < 100 %}{% set id = '0' ~ id %}{% endif %}

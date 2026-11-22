@@ -123,13 +123,55 @@ export function insert(root, parentId, index, node) {
   if (!canContain(p.node.type, node.type)) {
     throw new Error(`a ${node.type} cannot go into a ${p.node.type}`);
   }
-  if (node.type === 'field' && isCell(p.node) && hasLabel(node)) {
+  if (node.type === 'field' && isCell(p.node) && hasLabel(node) && labelMode(root, p.node.id) === 'left') {
     placeFieldInCell(root, p.node, node);
     return;
   }
   const kids = (p.node.children ||= []);
   const i = Math.max(0, Math.min(index, kids.length));
   kids.splice(i, 0, node);
+  // Labels on top: the field's label goes into the header row above it.
+  if (node.type === 'field' && isCell(p.node) && hasLabel(node)) addFieldLabel(root, node.id);
+}
+
+// labelMode of the table that holds id: 'left' (label cell before each field) or
+// 'top' (labels in the header row, the first row of the table).
+export function labelMode(root, id) {
+  const t = tableOf(root, id);
+  return t && t.props && t.props.labels === 'top' ? 'top' : 'left';
+}
+
+function isEmptyCell(c) {
+  return (c.children || []).every((x) => x.type === 'text' && !(x.props && x.props.text));
+}
+
+// addHeaderLabel puts the field's label into the header row, in the column of its cell.
+// A field in the first row gets a new header row above it. A header cell with content stays as it is.
+function addHeaderLabel(root, n) {
+  const table = tableOf(root, n.node.id);
+  const row = rowOf(root, n.node.id);
+  const col = row.children.indexOf(n.parent);
+  const nextId = idGen(root);
+  if (table.children[0] === row) table.children.unshift({ id: nextId(), type: 'tr', children: [] });
+  const header = table.children[0];
+  while (header.children.length <= col) header.children.push(createNode('th', nextId));
+  const cell = header.children[col];
+  if (!isEmptyCell(cell)) return;
+  cell.type = 'th';
+  cell.children = [{ id: nextId(), type: 'flabel', props: { field: n.node.id } }];
+}
+
+// setLabelMode switches a table between labels left and on top, and moves the labels
+// of its fields. Cells that held labels stay (empty), so nothing else moves.
+export function setLabelMode(root, tableId, mode) {
+  const table = find(root, tableId).node;
+  table.props ||= {};
+  if (mode === 'top') table.props.labels = 'top';
+  else delete table.props.labels;
+  const fields = [];
+  walk(table, (c) => { if (c.type === 'field') fields.push(c); });
+  dropFieldLabels(root, new Set(fields.map((f) => f.id)));
+  for (const f of fields) if (hasLabel(f)) addFieldLabel(root, f.id);
 }
 
 export function isCell(n) {
@@ -177,6 +219,10 @@ function dropFieldLabels(root, fieldIds) {
 export function addFieldLabel(root, fieldId) {
   const n = find(root, fieldId);
   if (!n || !isCell(n.parent) || fieldLabels(root, fieldId).length) return;
+  if (labelMode(root, fieldId) === 'top') {
+    addHeaderLabel(root, n);
+    return;
+  }
   const row = rowOf(root, n.parent.id);
   const at = row.children.indexOf(n.parent);
   const nextId = idGen(root);
@@ -484,6 +530,19 @@ export function setRepeat(node, count) {
 export function listOf(root, id) {
   for (let n = find(root, id); n; n = n.parent ? find(root, n.parent.id) : null) {
     if (repeatCount(n.node) > 1) return n.node;
+  }
+  return null;
+}
+
+export const repeatNames = { row: 'row', col: 'col', card: 'card', tr: 'table row', li: 'list item' };
+
+// repeatTarget is the element that a list for id applies to: the list it is already in,
+// else the nearest element (itself or around it) that can repeat. null if none.
+export function repeatTarget(root, id) {
+  const list = listOf(root, id);
+  if (list) return list;
+  for (let n = find(root, id); n; n = n.parent ? find(root, n.parent.id) : null) {
+    if (repeatTypes.has(n.node.type)) return n.node;
   }
   return null;
 }
