@@ -6,7 +6,9 @@ A small app for Windows, Linux and macOS to design **character sheets and stat b
 
 You build the sheet visually. The app writes clean Twig, CSS and YAML that pass World Anvil's security filter.
 
-<!-- TODO: add a screenshot, e.g. docs/screenshot.png -->
+![Layout Mode](docs/layout.png)
+
+More in [Screenshots](#screenshots).
 
 ## Features
 
@@ -31,9 +33,18 @@ You build the sheet visually. The app writes clean Twig, CSS and YAML that pass 
 | `basic-sheet.html.twig` | the sheet view |
 | `edit-form.html.twig` | the form to enter data |
 | `style.css` | all styles |
-| `approved.css` | font definitions and CSS that only the approved field may hold (e.g. gradients) |
+| `approved.css` | font definitions and CSS that only the approved field may hold (e.g. font urls or gradients) |
 
 Your design is saved as `project.json` in the same folder, so you can open and change it later.
+
+> [!WARNING]
+> The "approved css" field is not visible to everyone. You either need a WA developer to add that css content or ask Tillerz to create the sheet in WA for you.
+
+> [!NOTE]
+> Things to remember:
+> - If you create a sheet/block for a new system, WA dev team need to create this system for you in WA first.
+> - If the sheet shall be available to everyone, the WA dev team needs to "publish" the sheet/block ('released to public').
+> - The tool does not generate the tracker or the badge, but those are easy to do; the badge is a minimalistic version of the basic sheet, and the tracker is a stripped down version of the edit form.
 
 ## Install
 
@@ -77,6 +88,17 @@ Notes:
 The app is one Go program. It starts a small web server on `127.0.0.1` (your own PC only) with a random port and a secret key, and opens the editor in your browser. The editor is plain HTML, CSS and JavaScript, with no third-party JavaScript libraries.
 
 Settings like recent sheets, and the autosave of unsaved work, are stored in `%AppData%\wa-sheet-gen\settings.json` (Windows), `~/.config/wa-sheet-gen/settings.json` (Linux) or `~/Library/Application Support/wa-sheet-gen/settings.json` (macOS), with `autosave.json` next to it.
+
+## Screenshots
+
+### Layout View
+![Layout Mode](docs/layout.png)
+
+### Sidebar
+<img alt="Sidebar" src="docs/sidebar.png" width="350px">
+
+### Themes
+<img alt="Themes" src="docs/themes.png" width="350px">
 
 ## Build from source
 
