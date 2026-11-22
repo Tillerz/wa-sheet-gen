@@ -40,7 +40,7 @@ type Project struct {
 	Root      *Node     `json:"root"`
 }
 
-// newProject returns an empty sheet that holds only the mandatory name field.
+// newProject returns a sheet with a useful start: row > col > card "Personal" > name field.
 func newProject() *Project {
 	return &Project{
 		Version:   projectVersion,
@@ -49,11 +49,18 @@ func newProject() *Project {
 		Root: &Node{ID: "n1", Type: "container", Children: []*Node{
 			{ID: "n2", Type: "row", Children: []*Node{
 				{ID: "n3", Type: "col", Props: map[string]any{"col": 12}, Children: []*Node{
-					{ID: "n4", Type: "field", Props: map[string]any{
-						"fieldType": "string",
-						"name":      "name",
-						"label":     "name",
-						"required":  true,
+					{ID: "n4", Type: "card", Props: map[string]any{}, Children: []*Node{
+						{ID: "n5", Type: "card-header", Children: []*Node{
+							{ID: "n6", Type: "text", Props: map[string]any{"text": "Personal"}},
+						}},
+						{ID: "n7", Type: "card-body", Children: []*Node{
+							{ID: "n8", Type: "field", Props: map[string]any{
+								"fieldType": "string",
+								"name":      "name",
+								"label":     "name",
+								"required":  true,
+							}},
+						}},
 					}},
 				}},
 			}},

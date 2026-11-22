@@ -390,3 +390,15 @@ export function listAddItem(root, id) {
   kids.splice(li ? kids.indexOf(li) + 1 : kids.length, 0, item);
   return item;
 }
+
+// rowFreeSpace is how many of the 12 grid columns stay empty on the last line
+// of a row at a breakpoint. Auto-width cols fill the line, so then nothing is free.
+export function rowFreeSpace(row, key) {
+  let line = 0;
+  for (const c of row.children || []) {
+    const w = effectiveWidth(c.props, key);
+    if (w === null) return 0;
+    line = line + w > 12 ? w : line + w;
+  }
+  return 12 - line;
+}

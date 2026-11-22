@@ -101,7 +101,11 @@ func TestNewSaveOpenRoundTrip(t *testing.T) {
 	if got.SheetName != "my-sheet" || got.Version != projectVersion {
 		t.Errorf("got sheet %q version %d", got.SheetName, got.Version)
 	}
-	field := got.Root.Children[0].Children[0].Children[0]
+	card := got.Root.Children[0].Children[0].Children[0]
+	if card.Type != "card" || card.Children[0].Children[0].Props["text"] != "Personal" {
+		t.Errorf("start card wrong: %+v", card)
+	}
+	field := card.Children[1].Children[0]
 	if field.Type != "field" || field.Props["name"] != "name" || field.Props["required"] != true {
 		t.Errorf("mandatory name field lost: %+v", field)
 	}

@@ -89,3 +89,17 @@ span.ed-hover::before, span.ed-selected::before { content: none; }
   cursor: ew-resize;
 }
 .ed-node:hover > .ed-resize, .ed-selected > .ed-resize { background: rgba(91, 91, 214, 0.45); }
+.ed-empty {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 40px;
+  color: #9aa3b5;
+  font: 11px system-ui, sans-serif;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  outline: none !important;
+  background: repeating-linear-gradient(135deg, transparent, transparent 6px, rgba(138, 148, 166, 0.12) 6px, rgba(138, 148, 166, 0.12) 12px);
+  border: 1px dashed #c3c9d4;
+  background-clip: content-box;
+}

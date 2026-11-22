@@ -1,0 +1,51 @@
+<div class='container-fluid block-test-sheet'>
+  <div class='row'>
+    <div class='col-12 col-md-6'>
+      <div class='card personal'>
+        <div class='card-header'>Personal</div>
+        <div class='card-body'>
+          <table class='table'>
+            <tr>
+              <th class='lbl lbl-name'>name</th>
+              <td class='var var-name'>{{variables.name|default}}</td>
+            </tr>
+            <tr>
+              <th class='lbl lbl-level'>Level</th>
+              <td class='var var-level'>{{variables.level|default}}</td>
+            </tr>
+            <tr>
+              <th>plain</th>
+              <td></td>
+            </tr>
+          </table>
+        </div>
+      </div>
+    </div>
+    <div class='col-lg-4'>
+      <img src='/i/7978043/render' alt='' width='350'>
+      <div class='txt'>Tom&#39;s &lt;b&gt;&#123;&#123; variables.x &#125;&#125;&lt;/b&gt; &amp; &quot;more&quot;</div>
+      <div class='lbl lbl-notes'>Notes</div>
+      <div class='var var-notes'>{{variables.notes|default|nl2br}}</div>
+      <div class='lbl lbl-wounds-001'>wound</div>
+      <div class='var var-wounds-001'>{% if variables.wounds_001|default > 0 %}<i class='fa-regular fa-square-check'></i>{% else %}<i class='fa-regular fa-square'></i>{% endif %}</div>
+      <div class='lbl lbl-weapon-range'>range</div>
+      <div class='var var-weapon-range'>{{variables.weapon_range|default}}</div>
+      <div class='lbl lbl-ancestry'>ancestry</div>
+      <div class='var var-ancestry'>{{variables.ancestry|default}}</div>
+      <div class='lbl lbl-portrait'>portrait</div>
+      <div class='var var-portrait'>{% if variables.portrait|default > 0 %}[img:{{variables.portrait}}]{% endif %}</div>
+    </div>
+    <div class='col'>
+      <ul>
+        <li>Item</li>
+        <li>
+          <div class='lbl lbl-gear'>gear</div>
+          <div class='var var-gear'>{{variables.gear|default}}</div>
+        </li>
+      </ul>
+      <ol>
+        <li>First</li>
+      </ol>
+    </div>
+  </div>
+</div>

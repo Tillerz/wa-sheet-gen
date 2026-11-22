@@ -29,7 +29,11 @@ async function api(method, path, body) {
   }
   const res = await fetch(path, opts);
   const data = await res.json().catch(() => ({}));
-  if (!res.ok) throw new Error(data.error || `${res.status} ${res.statusText}`);
+  if (!res.ok) {
+    const err = new Error(data.error || `${res.status} ${res.statusText}`);
+    err.data = data;
+    throw err;
+  }
   return data;
 }
 
@@ -51,9 +55,104 @@ function baseName(path) {
   return path.split(/[\\/]/).filter(Boolean).pop() || path;
 }
 
-function setDirty(dirty) {
-  state.dirty = dirty;
+// ---------- undo / redo ----------
+
+// undoHistory keeps JSON snapshots of the project. Quick typing in the panel is grouped
+// into one step; canvas changes (drop, delete, …) are one step each.
+const undoHistory = { undo: [], redo: [], current: '', saved: '', timer: null };
+const historyLimit = 200;
+
+function snapshot() {
+  return JSON.stringify(state.project);
+}
+
+function updateDirty() {
+  state.dirty = snapshot() !== undoHistory.saved;
   updateTitle();
+}
+
+function updateUndoButtons() {
+  $('btnUndo').disabled = !undoHistory.undo.length && !undoHistory.timer;
+  $('btnRedo').disabled = !undoHistory.redo.length;
+}
+
+function historyReset() {
+  clearTimeout(undoHistory.timer);
+  undoHistory.timer = null;
+  undoHistory.undo = [];
+  undoHistory.redo = [];
+  undoHistory.current = undoHistory.saved = snapshot();
+  updateDirty();
+  updateUndoButtons();
+}
+
+// historyRecord stores the state before the latest changes as one undo step.
+function historyRecord() {
+  clearTimeout(undoHistory.timer);
+  undoHistory.timer = null;
+  const now = snapshot();
+  if (now !== undoHistory.current) {
+    undoHistory.undo.push(undoHistory.current);
+    if (undoHistory.undo.length > historyLimit) undoHistory.undo.shift();
+    undoHistory.redo = [];
+    undoHistory.current = now;
+  }
+  updateUndoButtons();
+}
+
+// noteChange is called after every change to the project.
+function noteChange(immediate) {
+  if (immediate) {
+    historyRecord();
+  } else {
+    clearTimeout(undoHistory.timer);
+    undoHistory.timer = setTimeout(historyRecord, 600);
+    updateUndoButtons();
+  }
+  updateDirty();
+}
+
+function restore(json) {
+  const sel = editor.selectedId;
+  state.project = JSON.parse(json);
+  $('sheetName').value = state.project.sheetName;
+  checkSheetName();
+  editor.render();
+  editor.select(sel);
+  updateDirty();
+  updateUndoButtons();
+}
+
+function undo() {
+  historyRecord();
+  if (!undoHistory.undo.length) return;
+  undoHistory.redo.push(undoHistory.current);
+  undoHistory.current = undoHistory.undo.pop();
+  restore(undoHistory.current);
+}
+
+function redo() {
+  historyRecord();
+  if (!undoHistory.redo.length) return;
+  undoHistory.undo.push(undoHistory.current);
+  undoHistory.current = undoHistory.redo.pop();
+  restore(undoHistory.current);
+}
+
+function isTyping(target) {
+  return !!target && (target.isContentEditable || ['INPUT', 'TEXTAREA', 'SELECT'].includes(target.tagName));
+}
+
+function onShortcut(e) {
+  if (!(e.ctrlKey || e.metaKey) || isTyping(e.target)) return;
+  const k = e.key.toLowerCase();
+  if (k === 'z' && !e.shiftKey) {
+    e.preventDefault();
+    undo();
+  } else if (k === 'y' || (k === 'z' && e.shiftKey)) {
+    e.preventDefault();
+    redo();
+  }
 }
 
 function updateTitle() {
@@ -68,7 +167,7 @@ function setProject(project, folder) {
   state.folder = folder;
   $('sheetName').value = project.sheetName;
   checkSheetName();
-  setDirty(false);
+  historyReset();
   editor.render();
   editor.select(null);
 }
@@ -99,7 +198,7 @@ function confirmDiscard() {
 const editor = createEditor({
   iframe: $('canvas'),
   getProject: () => state.project,
-  onChange: () => setDirty(true),
+  onChange: () => noteChange(true),
   onSelect: renderSelection,
   openMenu,
   setFieldLabel,
@@ -263,7 +362,7 @@ function fieldPanel(node, out) {
     oninput: () => {
       if (descInput.value) p.description = descInput.value;
       else delete p.description;
-      setDirty(true);
+      noteChange(false);
     },
   });
   out.push(labeled('Description', descInput));
@@ -280,7 +379,7 @@ function fieldPanel(node, out) {
           if (input.value === '' || Number.isNaN(Number(input.value))) delete p[key];
           else p[key] = Number(input.value);
           checkRange();
-          setDirty(true);
+          noteChange(false);
         },
       });
       out.push(labeled(key === 'min' ? 'Min' : 'Max', input));
@@ -296,7 +395,7 @@ function fieldPanel(node, out) {
         const v = Math.round(Number(input.value));
         if (v >= 1 && v <= 20) {
           p.rows = v;
-          setDirty(true);
+          noteChange(false);
         }
       },
     });
@@ -328,7 +427,7 @@ const colWidthKeys = [
 ];
 
 function changed() {
-  setDirty(true);
+  noteChange(false);
   editor.render();
 }
 
@@ -590,18 +689,23 @@ async function doOpen() {
   }
 }
 
-async function saveTo(folder) {
+// saveTo saves the project into folder. Returns true on success.
+async function saveTo(folder, quiet = false) {
   if (!checkSheetName()) {
     toast('Fix the sheet name first.', true);
-    return;
+    return false;
   }
   try {
+    historyRecord();
     await api('POST', '/api/project/save', { folder, project: state.project });
     state.folder = folder;
-    setDirty(false);
-    toast('Saved');
+    undoHistory.saved = snapshot();
+    updateDirty();
+    if (!quiet) toast('Saved');
+    return true;
   } catch (e) {
     toast(e.message, true);
+    return false;
   }
 }
 
@@ -610,22 +714,99 @@ async function doSave() {
   return saveTo(state.folder);
 }
 
-async function doSaveAs() {
+async function doSaveAs(quiet = false) {
   const folder = await pickFolder('save');
-  if (folder) await saveTo(folder);
+  return folder ? saveTo(folder, quiet) : false;
 }
+
+// ---------- check and export ----------
+
+function showProblems(title, problems) {
+  $('probTitle').textContent = title;
+  const order = { error: 0, warning: 1 };
+  const items = [...problems].sort((a, b) => order[a.level] - order[b.level]).map((p) => {
+    const li = document.createElement('li');
+    li.className = p.level;
+    const icon = document.createElement('span');
+    icon.className = 'prob-icon';
+    icon.textContent = p.level === 'error' ? '✖' : '!';
+    const msg = document.createElement('span');
+    msg.textContent = p.message;
+    li.append(icon, msg);
+    if (p.nodeId) {
+      li.classList.add('link');
+      li.title = 'Show in the sheet';
+      li.onclick = () => {
+        $('probDlg').close();
+        editor.select(p.nodeId);
+      };
+    }
+    return li;
+  });
+  $('probList').replaceChildren(...items);
+  $('probDlg').showModal();
+}
+
+function countLevel(problems, level) {
+  return problems.filter((p) => p.level === level).length;
+}
+
+async function doCheck() {
+  historyRecord();
+  try {
+    const { problems } = await api('POST', '/api/check', { project: state.project });
+    if (!problems.length) toast('No problems found.');
+    else showProblems(`${countLevel(problems, 'error')} errors, ${countLevel(problems, 'warning')} warnings`, problems);
+  } catch (e) {
+    toast(e.message, true);
+  }
+}
+
+// doExport checks the sheet, saves it, then writes the five WA files into the project folder.
+async function doExport() {
+  historyRecord();
+  try {
+    const { problems } = await api('POST', '/api/check', { project: state.project });
+    if (countLevel(problems, 'error')) {
+      showProblems(`Export stopped: ${countLevel(problems, 'error')} errors`, problems);
+      return;
+    }
+    const saved = state.folder ? await saveTo(state.folder, true) : await doSaveAs(true);
+    if (!saved) return;
+    const res = await api('POST', '/api/export', { folder: state.folder, project: state.project });
+    if (res.problems.length) {
+      showProblems(`Exported ${res.files.length} files, with ${res.problems.length} warnings`, res.problems);
+    } else {
+      toast(`Exported ${res.files.length} files to ${baseName(state.folder)}`);
+    }
+  } catch (e) {
+    if (e.data && e.data.problems) showProblems('Export stopped', e.data.problems);
+    else toast(e.message, true);
+  }
+}
+
+$('btnCheck').onclick = doCheck;
+$('btnExport').onclick = doExport;
+$('probClose').onclick = () => $('probDlg').close();
 
 $('btnNew').onclick = doNew;
 $('btnOpen').onclick = doOpen;
-$('btnSave').onclick = doSave;
-$('btnSaveAs').onclick = doSaveAs;
+$('btnSave').onclick = () => doSave();
+$('btnSaveAs').onclick = () => doSaveAs();
 
 $('sheetName').addEventListener('input', () => {
   state.project.sheetName = $('sheetName').value;
   checkSheetName();
-  setDirty(true);
+  noteChange(false);
   editor.render();
 });
+
+$('btnUndo').onclick = undo;
+$('btnRedo').onclick = redo;
+document.addEventListener('keydown', onShortcut);
+// The canvas is its own document: listen there too.
+$('canvas').addEventListener('load', () => $('canvas').contentDocument.addEventListener('keydown', onShortcut));
+if ($('canvas').contentDocument) $('canvas').contentDocument.addEventListener('keydown', onShortcut);
 
 window.addEventListener('beforeunload', (e) => {
   if (state.dirty) e.preventDefault();

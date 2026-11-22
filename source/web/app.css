@@ -89,7 +89,8 @@ code {
   border-bottom: 1px solid var(--border);
 }
 .brand { font-weight: 600; letter-spacing: 0.01em; }
-.actions { display: flex; gap: 6px; }
+.actions { display: flex; gap: 6px; align-items: center; }
+.bar-sep { width: 1px; height: 22px; background: var(--border); margin: 0 6px; }
 .doc-title { margin-left: auto; color: var(--muted); }
 
 /* Workspace */
@@ -268,6 +269,31 @@ dialog::backdrop { background: rgba(10, 12, 20, 0.45); }
 .dlg-list .empty { color: var(--muted); cursor: default; }
 .dlg-list .empty::before { content: none; }
 .dlg-buttons { display: flex; justify-content: flex-end; gap: 8px; }
+
+/* Problem list */
+.prob-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  max-height: 360px;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.prob-list li {
+  display: flex;
+  gap: 10px;
+  align-items: baseline;
+  padding: 8px 10px;
+  border-radius: 6px;
+  background: var(--bg);
+}
+.prob-list li.link { cursor: pointer; }
+.prob-list li.link:hover { outline: 1px solid var(--accent); }
+.prob-icon { font-weight: 700; width: 14px; text-align: center; }
+.prob-list .error .prob-icon { color: var(--danger); }
+.prob-list .warning .prob-icon { color: #d99a1e; }
 
 /* Toast */
 #toast {

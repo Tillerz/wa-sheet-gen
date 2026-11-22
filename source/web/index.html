@@ -14,6 +14,12 @@
       <button id="btnOpen" type="button">Open…</button>
       <button id="btnSave" type="button" class="primary">Save</button>
       <button id="btnSaveAs" type="button">Save as…</button>
+      <span class="bar-sep"></span>
+      <button id="btnUndo" type="button" title="Undo (Ctrl+Z)" disabled>↶ Undo</button>
+      <button id="btnRedo" type="button" title="Redo (Ctrl+Y)" disabled>↷ Redo</button>
+      <span class="bar-sep"></span>
+      <button id="btnCheck" type="button" title="Check the sheet against the WA rules">Check</button>
+      <button id="btnExport" type="button" class="primary" title="Save, then write the five WA files into the project folder">Export</button>
     </nav>
     <div class="doc-title" id="docTitle"></div>
   </header>
@@ -86,6 +92,16 @@
       <div class="dlg-buttons">
         <button type="button" id="dlgCancel">Cancel</button>
         <button type="button" id="dlgOk" class="primary"></button>
+      </div>
+    </div>
+  </dialog>
+
+  <dialog id="probDlg">
+    <div class="dlg">
+      <h3 id="probTitle"></h3>
+      <ul class="prob-list" id="probList"></ul>
+      <div class="dlg-buttons">
+        <button type="button" id="probClose" class="primary">Close</button>
       </div>
     </div>
   </dialog>

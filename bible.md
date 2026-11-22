@@ -80,6 +80,8 @@ Field names, sheet names and card classes become CSS class names. So they must n
 
 Every sheet has a field `name` (type string, `required: true`). You cannot delete it. You can move it and change its label.
 
+A new sheet starts with: row → col-12 → card with the header "Personal" → card-body → `name` field.
+
 ### 4.2 Field types
 
 All types found in the three examples:
@@ -188,6 +190,8 @@ Classes: sheet uses `lbl` / `var`, form uses `ilbl` / `ivar`, plus a per-field c
 - **Double-click** edits text in place (static text, labels, card-header text, li, cells).
 - **Right-click** menu per element: delete, duplicate, format, plus the element's own actions (5.3, 5.4).
 - **Duplicate** copies an element. Copied fields get a new unique name (a numeric suffix is added or increased: `weapon` → `weapon_2`). For many numbered entries, use lists (section 11, version 2).
+- **Empty space**: when the cols of a row (at the current screen size) fill less than 12 columns, the free part shows as a striped "empty" box. An empty row shows "drop a col here".
+- **Undo / Redo**: buttons in the top bar, and Ctrl+Z / Ctrl+Y (Ctrl+Shift+Z). Each canvas change is one step; quick typing in the panel is grouped into one step. Undo back to the saved state clears the "unsaved" mark. Up to 200 steps.
 - **View switch**: Layout (editing) / Sheet preview / Form preview. Previews render with sample data.
 - Look: modern, clean, light and dark mode, fast. No external JavaScript libraries.
 - Add mouse-over text to fields
@@ -240,8 +244,11 @@ Rules:
 
 ### 8.2 Export
 
-- Writes the five files into the project folder.
-- Validation (section 9) runs first. Errors stop the export. Warnings do not.
+- Writes the five files into the project folder. The project is saved first (Save as if it has no folder yet).
+- Validation (section 9) runs first. Errors stop the export. Warnings do not. A problem list shows both; clicking a problem selects its element.
+- User text is HTML-escaped, including `{` and `}`, so it can never become Twig code. Dropdown values are escaped for both the Twig string and the HTML.
+- A static text directly in a col or card-body becomes `<div class='txt'>…</div>`; in a header, list item or cell it is plain text.
+- A golden-file test (`source/testdata/`) fixes the exact output. After a wanted change: `go test -run TestExportGolden -update`, then review the diff.
 - Files are UTF-8 without BOM.
 
 ### 8.3 Importing existing WA files — not supported
@@ -304,6 +311,7 @@ Sheets often repeat a block, e.g. 10 skills or 4 weapons. Version 2 exports thes
 - Formatting single words inside a text
 - Undo/redo beyond a simple history (open for discussion)
 - Own app window (option B: WebView2)
+- Multi-select of elements, to format several at once (idea, tracked in the todo manager)
 
 ## 13. Open questions
 

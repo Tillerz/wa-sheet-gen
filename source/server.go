@@ -29,6 +29,8 @@ func newServer(token string, web fs.FS) http.Handler {
 	api.HandleFunc("POST /api/project/save", s.projectSave)
 	api.HandleFunc("GET /api/fs/list", s.fsList)
 	api.HandleFunc("GET /api/rules", s.rules)
+	api.HandleFunc("POST /api/check", s.check)
+	api.HandleFunc("POST /api/export", s.export)
 
 	mux := http.NewServeMux()
 	mux.Handle("/api/", s.requireToken(api))
@@ -127,6 +129,53 @@ func (s *server) projectSave(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	writeJSON(w, map[string]string{"folder": req.Folder})
+}
+
+func (s *server) check(w http.ResponseWriter, r *http.Request) {
+	var req struct {
+		Project *Project `json:"project"`
+	}
+	if err := readJSON(w, r, &req); err != nil || req.Project == nil {
+		writeError(w, http.StatusBadRequest, errors.New("project is required"))
+		return
+	}
+	_, problems := buildExport(req.Project)
+	writeJSON(w, map[string]any{"problems": nonNil(problems)})
+}
+
+// export validates the project and writes the five WA files into folder.
+func (s *server) export(w http.ResponseWriter, r *http.Request) {
+	var req struct {
+		Folder  string   `json:"folder"`
+		Project *Project `json:"project"`
+	}
+	if err := readJSON(w, r, &req); err != nil {
+		writeError(w, http.StatusBadRequest, err)
+		return
+	}
+	if req.Folder == "" || !filepath.IsAbs(req.Folder) || req.Project == nil {
+		writeError(w, http.StatusBadRequest, errors.New("folder (absolute path) and project are required"))
+		return
+	}
+	files, problems := buildExport(req.Project)
+	if files == nil {
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusUnprocessableEntity)
+		json.NewEncoder(w).Encode(map[string]any{"error": "the sheet has errors", "problems": nonNil(problems)})
+		return
+	}
+	if err := writeExport(req.Folder, files); err != nil {
+		writeError(w, http.StatusInternalServerError, err)
+		return
+	}
+	writeJSON(w, map[string]any{"files": exportFiles, "problems": nonNil(problems)})
+}
+
+func nonNil(ps []Problem) []Problem {
+	if ps == nil {
+		return []Problem{}
+	}
+	return ps
 }
 
 type dirEntry struct {

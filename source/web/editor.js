@@ -139,6 +139,15 @@ export function createEditor({ iframe, getProject, onChange, onSelect, openMenu,
       default:
     }
     for (const child of node.children || []) el.append(renderNode(child, node.type));
+    if (node.type === 'row') {
+      const free = T.rowFreeSpace(node, bp);
+      if (free > 0) {
+        const gap = doc.createElement('div');
+        gap.className = `col-${free} ed-empty`;
+        gap.textContent = (node.children || []).length ? 'empty' : 'empty row: drop a col here';
+        el.append(gap);
+      }
+    }
     if (node.type === 'col') {
       const h = doc.createElement('div');
       h.className = 'ed-resize';
@@ -176,6 +185,7 @@ export function createEditor({ iframe, getProject, onChange, onSelect, openMenu,
     bp = key;
     iframe.style.width = canvasWidths[key];
     iframe.classList.toggle('wide', key === 'lg');
+    render();
   }
 
   // ---------- drag and drop ----------
@@ -353,6 +363,7 @@ export function createEditor({ iframe, getProject, onChange, onSelect, openMenu,
       if (span !== T.effectiveWidth(node.props, bp)) {
         T.setColWidth(node, bp, span);
         applyClasses(colEl, node);
+        updateRowGap(colEl.parentElement);
         changed = true;
       }
     };
@@ -367,6 +378,23 @@ export function createEditor({ iframe, getProject, onChange, onSelect, openMenu,
     handle.addEventListener('pointermove', onMove);
     handle.addEventListener('pointerup', onUp);
     handle.addEventListener('pointercancel', onUp);
+  }
+
+  // updateRowGap refreshes the empty-space marker of a row while a col is resized.
+  function updateRowGap(rowEl) {
+    const row = T.find(root(), rowEl.dataset.id).node;
+    const free = T.rowFreeSpace(row, bp);
+    let gap = rowEl.querySelector(':scope > .ed-empty');
+    if (free <= 0) {
+      if (gap) gap.remove();
+      return;
+    }
+    if (!gap) {
+      gap = doc.createElement('div');
+      gap.textContent = 'empty';
+      rowEl.append(gap);
+    }
+    gap.className = `col-${free} ed-empty`;
   }
 
   // ---------- double-click editing ----------

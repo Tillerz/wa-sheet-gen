@@ -1,0 +1,42 @@
+fields:
+  name:
+    label: "name"
+    input: string
+    description: "name"
+    required: true
+  level:
+    label: "Level"
+    input: integer
+    description: "Level"
+    min: 1
+    max: 20
+  notes:
+    label: "Notes"
+    input: text
+    description: "Free notes"
+    rows: 5
+  wounds_001:
+    label: "wound"
+    input: checkbox
+    description: "wound"
+  weapon_range:
+    label: "range"
+    input: select
+    description: "range"
+    options:
+      "Melee": "Melee"
+      "Very Close": "Very Close"
+      "It's far": "It's far"
+  ancestry:
+    label: "ancestry"
+    input: string
+    description: "ancestry"
+  portrait:
+    label: "portrait"
+    input: integer
+    description: "portrait"
+    render: image
+  gear:
+    label: "gear"
+    input: string
+    description: "gear"

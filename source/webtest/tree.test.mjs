@@ -264,3 +264,14 @@ test('moving a field inside its row keeps the cell count', () => {
   assert.equal(row.children[row.children.length - 1], f);
   assert.equal(t.tableCols(tb), 4);
 });
+
+test('rowFreeSpace', () => {
+  const row = (...cols) => ({ type: 'row', children: cols.map((props) => ({ type: 'col', props })) });
+  assert.equal(t.rowFreeSpace(row(), 'lg'), 12);
+  assert.equal(t.rowFreeSpace(row({ col: 6 }), 'lg'), 6);
+  assert.equal(t.rowFreeSpace(row({ col: 6 }, { col: 6 }), 'lg'), 0);
+  assert.equal(t.rowFreeSpace(row({ col: 8 }, { col: 6 }), 'lg'), 6, 'second col wraps');
+  assert.equal(t.rowFreeSpace(row({ col: 12, md: 4 }), 'md'), 8);
+  assert.equal(t.rowFreeSpace(row({ col: 12, md: 4 }), 'col'), 0);
+  assert.equal(t.rowFreeSpace(row({ md: 4 }), 'col'), 0, 'auto col fills the line');
+});
