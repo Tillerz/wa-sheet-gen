@@ -7,7 +7,7 @@ const draggableTypes = new Set(['row', 'col', 'card', 'field']);
 
 export function createEditor({ iframe, getProject, onChange, onSelect, openMenu }) {
   let doc = null;
-  let bp = 'col';
+  let bp = 'lg';
   let selectedId = null;
   let drag = null; // { kind: 'new', type } or { kind: 'move', id, type }
   let indicator = null;
