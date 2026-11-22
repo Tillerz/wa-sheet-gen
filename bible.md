@@ -26,13 +26,14 @@ The app's own project file (`project.json`) is the source of truth. The five WA 
 - All CSS goes into the two CSS files. No `style=` attributes and no `<style>` in the twig files.
 - **`approved.css`** goes into a special WA field with fewer security filters. Only WA developers and the sheet author can edit it. It holds:
   - `@font-face` blocks. Fonts load directly from a font file URL (`.woff2`, `.otf`, …). No `@import`, no external CSS files.
-  - CSS that the normal `style.css` filter removes, e.g. gradients (`linear-gradient(…)`). See Q2.
+  - CSS that the normal `style.css` filter removes, e.g. gradients (`linear-gradient(…)`).
 - **`style.css`** holds everything else.
 - No class name may start with `sh` or `py` (selector `.sh…` / `.py…`).
 - The sequence `);` must never appear. The WA security filter removes it. Fix: put a space between, e.g. `var(--dark) ;`. The generator does this automatically wherever needed.
 - No `'` and no `"` anywhere in CSS files. Font names with spaces go unquoted (`font-family: IM Fell English SC`).
 - No `%` inside `( )`. So no `rgb(10%, …)`, no `calc(50% …)`. Colors are written as hex (`#a000a0`) or WA theme variables (`var(--dark)`, `var(--light)`).
-- The three character rules above apply to both CSS files until Q1 says otherwise.
+- The three character rules above apply to both CSS files.
+- The `style.css` filter removes anything that looks suspicious. Never use these words anywhere in CSS, also not as part of a longer word or class name: `script`, `javascript`, `expression`, `behavior`, `@import`. The list lives in one place in the code so it can grow.
 - Every generated selector starts with the root class `.block-<sheetname>`, so sheet CSS cannot leak into the rest of the WA page.
 
 ### 3.2 YAML (`import-to-wa.yml`)
@@ -70,6 +71,8 @@ The app's own project file (`project.json`) is the source of truth. The five WA 
 | Sheet name | lowercase `a-z`, `0-9`, `-` | `nimble` → `block-nimble` |
 
 The app derives the field name from the label as you type (`HP Max` → `hp_max`). You can override it, but it must pass the rule. Field names must be unique in a sheet.
+
+Field names, sheet names and card classes become CSS class names. So they must not contain a suspicious word (3.1). Example: `description` contains `script` and is refused. Use e.g. `desc` instead.
 
 ## 4. Fields
 
@@ -195,6 +198,23 @@ Toolbar buttons and the right-click menu, for the selected element:
 - text color (color picker → hex, or WA theme variable `--dark` / `--light`)
 - font size (px)
 - font family (from the sheet's font list)
+- border: width (px), style (solid, dashed, dotted, double, none), color
+- border radius (px)
+- background color
+
+Border, border radius and background color are offered only where they make sense:
+
+| Element | Border / radius / background |
+| --- | --- |
+| card, card-header, card-body | yes |
+| table, th / td | yes |
+| field value (sheet) | yes |
+| field input (form): `input`, `textarea`, `select` | yes, set separately from the sheet look |
+| row, col, ul, ol, li, static text | no |
+
+A field has two looks: the value in the sheet (`.var-hp-max`) and the input in the form (`.ivar-hp-max`). The properties panel has a Sheet / Form switch for this.
+
+A plain background color goes into `style.css`. A gradient would go into `approved.css` (3.1); gradients are not in the toolbar in version 1, use custom CSS.
 
 Rules:
 
@@ -232,6 +252,7 @@ Runs on export and on demand (a "Check" button), with a list of problems that li
 - **Errors** (export blocked):
   - CSS contains `);`, `'`, `"`, or `%` inside `( )`
   - a class name starts with `sh` or `py`
+  - a suspicious word (3.1) in CSS, a class name or a field name
   - JavaScript in any exported file (3.3)
   - a field name breaks the naming rule, or two fields share a name
   - `name` field missing
@@ -283,8 +304,7 @@ Sheets often repeat a block, e.g. 10 skills or 4 weapons. Version 2 exports thes
 
 ## 13. Open questions
 
-- **Q1 — character rules in `approved.css`**: do `);`, quotes and `%` inside `( )` also break `approved.css`? Until known, the generator applies the same rules to both files. (The daggerheart `approved.css` follows them.)
-- **Q2 — what the `style.css` filter removes**: gradients are known. Which other CSS does it remove (e.g. `url(…)`, `border-image`)? The daggerheart `style.css` uses `url(/i/…/render)` and `border-image`, so those seem fine. The generator moves every known-filtered property to `approved.css`.
+None at the moment.
 
 ## 14. Milestones
 
@@ -294,6 +314,6 @@ Each step ends with a check.
 2. **Layout editor**: rows, cols, cards, drag and drop, col resize, context menus. → check: rebuild the nimble layout by hand.
 3. **Content**: all field types, ul/ol, tables, static text/image, double-click editing, duplicate. → check: rebuild the nimble fields.
 4. **Export + validation**: generator, validator, golden-file tests. → check: `go test ./...` passes; upload the exported nimble rebuild to WA and confirm sheet and form work.
-5. **Formatting + fonts + custom CSS**: toolbar, generated classes, font list. → check: CSS passes validation; looks right in WA.
+5. **Formatting + fonts + custom CSS**: toolbar, borders and backgrounds, generated classes, font list. → check: CSS passes validation; looks right in WA.
 6. **Polish**: previews with sample data, dark mode, keyboard shortcuts.
 7. **Version 2**: lists (section 11).
