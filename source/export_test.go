@@ -119,6 +119,7 @@ func TestValidationErrors(t *testing.T) {
 		"css percent":         {func(p *Project) { p.CustomCSS.Style = ".a { width: calc(50% - 2px) }" }, "% inside ( )"},
 		"css sh class":        {func(p *Project) { p.CustomCSS.Style = ".shadow { color: red }" }, "must not start with sh or py"},
 		"css banned word":     {func(p *Project) { p.CustomCSS.Approved = ".a { behavior: x }" }, "filtered word"},
+		"css font list":       {func(p *Project) { p.CustomCSS.Style = ".a { font-family: Georgia, serif }" }, "only one font"},
 		"bad font url":        {func(p *Project) { p.Fonts = []Font{{Name: "X", URL: "http://a b"}} }, "URL must start"},
 		"bad color": {func(p *Project) {
 			p.Root.Children[0].Children[0].Children[0].Props["fmt"] = map[string]any{"color": "rgb(10%, 0, 0)"}
@@ -338,8 +339,8 @@ func TestPresetSplitList(t *testing.T) {
 func TestValueFormatsReachTheInput(t *testing.T) {
 	files, _ := buildExport(loadTestProject(t, "full.project.json"))
 	css := files["style.css"]
-	both := strings.Index(css, ".block-test-sheet .var-level, .block-test-sheet :is(input, textarea, select).ivar-level {")
-	input := strings.Index(css, "\n.block-test-sheet :is(input, textarea, select).ivar-level {")
+	both := strings.Index(css, ".block-test-sheet .var-level,\n.block-test-sheet input.ivar-level,\n.block-test-sheet textarea.ivar-level,\n.block-test-sheet select.ivar-level\n{")
+	input := strings.Index(css, "}\n.block-test-sheet input.ivar-level,\n.block-test-sheet textarea.ivar-level,\n.block-test-sheet select.ivar-level\n{")
 	if both < 0 || input < 0 || both > input {
 		t.Errorf("value rule %d must come before the input rule %d:\n%s", both, input, css)
 	}

@@ -284,6 +284,12 @@ func validateField(n *Node, names map[string]string, inList bool) []Problem {
 
 var shPyClassRe = regexp.MustCompile(`(?i)\.(sh|py)[a-z0-9_-]*`)
 
+// parenBraceRe finds ") {" on one line: WA's filter removes it (e.g. after nth-child(n)).
+var parenBraceRe = regexp.MustCompile(`\)[ \t]*\{`)
+
+// fontListRe finds a font-family with a fallback list: WA allows only one font.
+var fontListRe = regexp.MustCompile(`(?i)font-family:[^;{}]*,[^;{}]*`)
+
 // checkCSS applies the WA CSS filter rules (bible 3.1) to a whole CSS file.
 func checkCSS(file, css string) []Problem {
 	var ps []Problem
@@ -306,6 +312,12 @@ func checkCSS(file, css string) []Problem {
 	}
 	if w := findBannedWord(css); w != "" {
 		ps = append(ps, errorf("", "%s contains the filtered word %q", file, w))
+	}
+	if parenBraceRe.MatchString(css) {
+		ps = append(ps, errorf("", "%s contains \") {\" — WA removes it and breaks the rule; put the { on a new line", file))
+	}
+	if m := fontListRe.FindString(css); m != "" {
+		ps = append(ps, errorf("", "%s: %q names more than one font; WA allows only one font per font-family", file, strings.TrimSpace(m)))
 	}
 	if m := shPyClassRe.FindString(css); m != "" {
 		ps = append(ps, errorf("", "%s uses the class %s; classes must not start with sh or py", file, m))

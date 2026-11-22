@@ -18,9 +18,11 @@ func TestThemesPassWARules(t *testing.T) {
 			t.Errorf("%s breaks a WA rule: %s", th.ID, problemsText(ps))
 		}
 		for _, want := range []string{
-			".block-test {", "border: ", ".block-test .card {", ".block-test .card-header {",
-			".block-test .lbl, .block-test .ilbl {", ".block-test .var {", ".block-test .form-control {",
-			".block-test .table tr:nth-child(even) {", "li:nth-child(even)",
+			".block-test\n{", "border: ", ".block-test .card\n{", ".block-test .card-header\n{",
+			".block-test .lbl,\n.block-test .ilbl\n{", ".block-test .var\n{", ".block-test .form-control\n{",
+			".block-test .table tr:nth-child(even)\n{", "li:nth-child(even)",
+			".block-test .card-body\n{", "background: transparent",
+			".block-test .table th,\n.block-test .table td\n{", ".block-test .table tr:nth-child(n)\n{",
 		} {
 			if !strings.Contains(css, want) {
 				t.Errorf("%s misses %q", th.ID, want)
@@ -90,5 +92,31 @@ func TestThemeFonts(t *testing.T) {
 	}
 	if ps := checkCSS("approved.css", css); len(ps) > 0 {
 		t.Errorf("%s", problemsText(ps))
+	}
+}
+
+// WA's filter removes ") {": the generated CSS must never contain it, with any theme.
+func TestGeneratedCSSHasNoParenBrace(t *testing.T) {
+	for _, th := range append(themes, Theme{}) {
+		p := loadTestProject(t, "full.project.json")
+		p.Theme = th.ID
+		p.CustomCSS = CustomCSS{}
+		files, ps := buildExport(p)
+		if files == nil {
+			t.Fatalf("%s: %s", th.ID, problemsText(ps))
+		}
+		for _, f := range []string{"style.css", "approved.css"} {
+			if m := parenBraceRe.FindString(files[f]); m != "" {
+				t.Errorf("theme %q: %s contains %q", th.ID, f, m)
+			}
+		}
+	}
+	for _, bad := range []string{".a li:nth-child(even) { color: red }", ".a:not(.b){ color: red }"} {
+		if ps := checkCSS("style.css", bad); !strings.Contains(problemsText(ps), "put the { on a new line") {
+			t.Errorf("not caught: %s", bad)
+		}
+	}
+	if ps := checkCSS("style.css", ".a li:nth-child(even)\n{\n  color: red;\n}"); len(ps) != 0 {
+		t.Errorf("{ on a new line is fine: %s", problemsText(ps))
 	}
 }

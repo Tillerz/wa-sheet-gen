@@ -158,13 +158,14 @@ func cssDecls(m map[string]any, box bool) []string {
 	return d
 }
 
-// cssRule writes one rule. A value ending in ")" gets a space before ";",
-// because WA filters the sequence ");" (bible 3.1).
+// cssRule writes one rule. WA's filter removes the sequences ");" and ") {" (bible 3.1):
+// a value ending in ")" gets a space before ";", and "{" always goes on its own line,
+// with each selector of a list on its own line (so "nth-child(n) {" can never form).
 func cssRule(b *strings.Builder, selector string, decls []string) {
 	if len(decls) == 0 {
 		return
 	}
-	b.WriteString(selector + " {\n")
+	b.WriteString(strings.ReplaceAll(selector, ", ", ",\n") + "\n{\n")
 	for _, d := range decls {
 		if strings.HasSuffix(d, ")") {
 			b.WriteString("  " + d + " ;\n")
@@ -205,6 +206,11 @@ func formatClasses(p *Project) (map[string]string, []string) {
 	return classes, order
 }
 
+// inputSelector selects a field's form input. Written out without :is(), which WA drops.
+func inputSelector(root, cls string) string {
+	return fmt.Sprintf("%s input.ivar-%s, %s textarea.ivar-%s, %s select.ivar-%s", root, cls, root, cls, root, cls)
+}
+
 // genFormatCSS writes the rules for the root, the f-N classes and the fields.
 func genFormatCSS(p *Project) string {
 	var b strings.Builder
@@ -220,7 +226,9 @@ func genFormatCSS(p *Project) string {
 	cssRule(&b, root, rootDecls)
 	_, order := formatClasses(p)
 	for i, key := range order {
-		cssRule(&b, fmt.Sprintf("%s .f-%d", root, i+1), strings.Split(key, ";"))
+		// The class is written twice (.f-1.f-1): classic CSS that is a bit more specific
+		// than any theme rule, so formats always win over the theme.
+		cssRule(&b, fmt.Sprintf("%s .f-%d.f-%d", root, i+1, i+1), strings.Split(key, ";"))
 	}
 	eachField(p.Root, func(n *Node) {
 		cls := fieldClass(propString(n, "name"))
@@ -230,9 +238,9 @@ func genFormatCSS(p *Project) string {
 		// only to the sheet value. The Input look comes later and overrides it.
 		value := fmtOf(n, "fmt")
 		text := cssDecls(value, false)
-		cssRule(&b, fmt.Sprintf("%s .var-%s, %s :is(input, textarea, select).ivar-%s", root, cls, root, cls), text)
+		cssRule(&b, fmt.Sprintf("%s .var-%s, %s", root, cls, inputSelector(root, cls)), text)
 		cssRule(&b, fmt.Sprintf("%s .var-%s", root, cls), cssDecls(value, true)[len(text):])
-		cssRule(&b, fmt.Sprintf("%s :is(input, textarea, select).ivar-%s", root, cls), cssDecls(fmtOf(n, "fmtInput"), true))
+		cssRule(&b, inputSelector(root, cls), cssDecls(fmtOf(n, "fmtInput"), true))
 	})
 	return b.String()
 }
