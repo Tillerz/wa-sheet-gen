@@ -32,10 +32,24 @@ body {
   opacity: 0.7;
 }
 
-#sheet .var {
-  min-height: 1.5em;
-  border-bottom: 1px solid #d0d5dd;
+#sheet .ed-ph { color: #8a94a6; font-style: italic; }
+#sheet div > .var { min-height: 1.5em; border-bottom: 1px solid #d0d5dd; }
+#sheet table.table { margin-bottom: 4px; }
+#sheet table.table th, #sheet table.table td { min-width: 40px; height: 32px; outline: 1px dotted #c9ced8; }
+#sheet ul, #sheet ol { min-height: 28px; outline: 1px dashed #9fb7a0; padding-top: 4px; padding-bottom: 4px; }
+#sheet li { min-height: 22px; }
+#sheet .ed-img {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 80px;
+  max-width: 100%;
+  border: 1px dashed #8a94a6;
+  color: #6b7285;
+  font: 12px system-ui, sans-serif;
+  background: repeating-linear-gradient(45deg, #f5f6f8, #f5f6f8 8px, #eceef2 8px, #eceef2 16px);
 }
+.ed-editing { outline: 2px solid #f0a020 !important; background: #fffbe8; cursor: text; }
 
 /* Editor overlays */
 .ed-node { position: relative; }

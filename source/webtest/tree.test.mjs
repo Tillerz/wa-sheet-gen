@@ -119,3 +119,148 @@ test('col widths', () => {
   assert.deepEqual(t.colClasses({ col: 12, md: 6 }), ['col-12', 'col-md-6']);
   assert.deepEqual(t.colClasses({}), ['col']);
 });
+
+const rules = { fieldNameRe: /^[a-z][a-z0-9]*(_[a-z0-9]+)*$/, bannedWords: ['script'] };
+
+test('table nesting: field in a row, text only in cells', () => {
+  assert.ok(t.canContain('tr', 'field'));
+  assert.ok(!t.canContain('td', 'field'));
+  assert.ok(t.canContain('td', 'text'));
+  assert.ok(t.canContain('li', 'field'));
+});
+
+test('new table is 2x2 with th and td', () => {
+  const tb = t.createNode('table', t.idGen(sample()));
+  assert.equal(tb.children.length, 2);
+  assert.deepEqual(tb.children[0].children.map((c) => c.type), ['th', 'td']);
+  assert.equal(t.tableCols(tb), 2);
+});
+
+test('table rows and cols', () => {
+  const r = sample();
+  const tb = t.createNode('table', t.idGen(r));
+  t.insert(r, 'n5', 0, tb);
+  const row0 = tb.children[0];
+  // a field counts as two cells (cells with text are not reused)
+  const nx = t.idGen(r);
+  for (const c of row0.children) c.children = [{ id: nx(), type: 'text', props: { text: 'x' } }];
+  t.insert(r, row0.id, 2, t.createField(r, 'string', t.idGen(r)));
+  assert.equal(t.tableCols(tb), 4);
+  const added = t.tableAddRow(r, row0.children[0].id);
+  assert.equal(tb.children[1], added, 'new row after the clicked row');
+  assert.equal(added.children.length, 4);
+  t.tableAddCol(r, tb.id);
+  assert.equal(tb.children[2].children.length, 3);
+  assert.ok(t.tableRemoveCol(r, tb.id));
+  assert.equal(row0.children[row0.children.length - 1].type, 'field', 'field is never removed as a column');
+  assert.ok(t.tableRemoveRow(r, added.id));
+  assert.equal(tb.children.length, 2);
+  t.tableRemoveRow(r, tb.children[0].id);
+  assert.ok(!t.tableRemoveRow(r, tb.children[0].id), 'last row stays');
+  const cell = { type: 'th' };
+  t.toggleCell(cell);
+  assert.equal(cell.type, 'td');
+});
+
+test('list items', () => {
+  const r = sample();
+  const ul = t.createNode('ul', t.idGen(r));
+  t.insert(r, 'n5', 0, ul);
+  assert.equal(ul.children.length, 2);
+  const first = ul.children[0];
+  const item = t.listAddItem(r, first.children[0].id);
+  assert.equal(ul.children[1], item, 'added after the clicked item');
+  t.listAddItem(r, ul.id);
+  assert.equal(ul.children.length, 4);
+});
+
+test('field names', () => {
+  assert.equal(t.toFieldName('HP Max'), 'hp_max');
+  assert.equal(t.toFieldName('  Hit-Dice (max) '), 'hit_dice_max');
+  assert.equal(t.toFieldName('2nd skill'), 'f_2nd_skill');
+  assert.equal(t.toFieldName('!!!'), '');
+  assert.equal(t.fieldNameError('hp_max', rules, new Set()), '');
+  assert.ok(t.fieldNameError('hp-max', rules));
+  assert.ok(t.fieldNameError('description', rules).includes('script'));
+  assert.ok(t.fieldNameError('name', rules, new Set(['name'])).includes('Another'));
+});
+
+test('createField gives unique names and type defaults', () => {
+  const r = sample();
+  const f1 = t.createField(r, 'text', t.idGen(r));
+  assert.equal(f1.props.name, 'new_field');
+  assert.equal(f1.props.rows, 3);
+  t.insert(r, 'n5', 0, f1);
+  const f2 = t.createField(r, 'select', t.idGen(r));
+  assert.equal(f2.props.name, 'new_field_2');
+  assert.deepEqual(f2.props.options, ['Option 1', 'Option 2']);
+  assert.throws(() => t.createField(r, 'nope', t.idGen(r)));
+});
+
+function tableIn(r) {
+  const tb = t.createNode('table', t.idGen(r));
+  t.insert(r, 'n5', 0, tb);
+  return tb;
+}
+
+test('field reuses two empty cells of a row', () => {
+  const r = sample();
+  const tb = tableIn(r);
+  const row = tb.children[0];
+  t.insert(r, row.id, 0, t.createField(r, 'string', t.idGen(r)));
+  assert.deepEqual(row.children.map((c) => c.type), ['field']);
+  assert.equal(t.tableCols(tb), 2);
+  // dropped after the cells: takes the cells on its left
+  const row2 = tb.children[1];
+  t.insert(r, row2.id, 2, t.createField(r, 'number', t.idGen(r)));
+  assert.deepEqual(row2.children.map((c) => c.type), ['field']);
+});
+
+test('field leaving a row leaves two empty cells', () => {
+  const r = sample();
+  const tb = tableIn(r);
+  const row = tb.children[0];
+  // move the name field into the table
+  t.move(r, 'n4', row.id, 0);
+  assert.deepEqual(row.children.map((c) => c.type), ['field']);
+  // and out again into the empty col n5
+  t.move(r, 'n4', 'n5', 0);
+  assert.deepEqual(row.children.map((c) => c.type), ['th', 'td']);
+  const ids = new Set();
+  t.walk(r, (n) => {
+    assert.ok(!ids.has(n.id), 'duplicate id ' + n.id);
+    ids.add(n.id);
+  });
+  // delete a field in a row
+  const f = t.createField(r, 'string', t.idGen(r));
+  t.insert(r, row.id, 0, f);
+  t.remove(r, f.id);
+  assert.deepEqual(row.children.map((c) => c.type), ['th', 'td']);
+});
+
+test('duplicate field in a row reuses empty cells', () => {
+  const r = sample();
+  const tb = tableIn(r);
+  const row = tb.children[0];
+  const f = t.createField(r, 'string', t.idGen(r));
+  t.insert(r, row.id, 0, f);
+  t.tableAddCol(r, tb.id);
+  t.tableAddCol(r, tb.id);
+  assert.equal(row.children.length, 3);
+  t.duplicate(r, f.id);
+  assert.deepEqual(row.children.map((c) => c.type), ['field', 'field']);
+});
+
+test('moving a field inside its row keeps the cell count', () => {
+  const r = sample();
+  const tb = tableIn(r);
+  const row = tb.children[0];
+  t.tableAddCol(r, tb.id);
+  t.tableAddCol(r, tb.id);
+  const f = t.createField(r, 'string', t.idGen(r));
+  t.insert(r, row.id, 0, f);
+  assert.equal(t.tableCols(tb), 4);
+  t.move(r, f.id, row.id, row.children.length);
+  assert.equal(row.children[row.children.length - 1], f);
+  assert.equal(t.tableCols(tb), 4);
+});

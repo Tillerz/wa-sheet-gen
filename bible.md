@@ -96,7 +96,7 @@ All types found in the three examples:
 
 Per type, the field dialog asks for:
 
-- all types: label, field name, description (YAML `description`)
+- all types: label, field name, description (YAML `description`; empty means same as label)
 - Number: min, max (both optional)
 - Text area: rows
 - Dropdown / Suggest: list of values, one per line
@@ -150,11 +150,13 @@ Classes: sheet uses `lbl` / `var`, form uses `ilbl` / `ivar`, plus a per-field c
 | card-body | row, field, ul, ol, table, static text, static image |
 | ul / ol | li |
 | li | static text, field |
-| table | tr → th / td cells |
-| th / td | static text, field |
+| table | tr |
+| tr | th, td, field |
+| th / td | static text |
 
 - **Static text**: free text, edited by double-click.
-- **Static image**: a fixed WA image, `<img src='/i/<id>/render'>`, as in the nimble and dccarl headers.
+- **Static image**: a fixed WA image, `<img src='/i/<id>/render'>`, as in the nimble and dccarl headers. Optional width in px (`width='350'`).
+- **Field in a table row**: a field dropped into a row fills two cells, the label in `<th>` and the value in `<td>`, as in the examples. It counts as two columns. Single cells hold only static text.
 
 ### 5.2 Cols
 
@@ -170,8 +172,8 @@ Classes: sheet uses `lbl` / `var`, form uses `ilbl` / `ivar`, plus a per-field c
 
 ### 5.4 Tables
 
-- New table: 2 × 2.
-- Right-click: add/remove row, add/remove column, toggle a cell between `th` and `td`.
+- New table: 2 × 2, each row one `th` and one `td`.
+- Right-click: add row (below the clicked row), remove row, add column (at the end), remove the last column, toggle a cell between `th` and `td`. Removing a column never removes a field.
 - A table never goes below 1 × 1.
 
 ## 6. Editor UI
@@ -188,6 +190,7 @@ Classes: sheet uses `lbl` / `var`, form uses `ilbl` / `ivar`, plus a per-field c
 - **Duplicate** copies an element. Copied fields get a new unique name (a numeric suffix is added or increased: `weapon` → `weapon_2`). For many numbered entries, use lists (section 11, version 2).
 - **View switch**: Layout (editing) / Sheet preview / Form preview. Previews render with sample data.
 - Look: modern, clean, light and dark mode, fast. No external JavaScript libraries.
+- Add mouse-over text to fields
 
 ## 7. Formatting
 

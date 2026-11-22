@@ -18,7 +18,7 @@ const state = {
   project: null,
   folder: '',
   dirty: false,
-  rules: { bannedWords: [], sheetNameRe: /^$/, classNameRe: /^$/, forbiddenPrefixes: [] },
+  rules: { bannedWords: [], sheetNameRe: /^$/, classNameRe: /^$/, fieldNameRe: /^$/, forbiddenPrefixes: [] },
 };
 
 async function api(method, path, body) {
@@ -102,6 +102,7 @@ const editor = createEditor({
   onChange: () => setDirty(true),
   onSelect: renderSelection,
   openMenu,
+  setFieldLabel,
 });
 
 // Palette: drag new elements into the canvas.
@@ -181,7 +182,144 @@ function classNameError(name) {
 const typeNames = {
   container: 'Sheet root', row: 'Row', col: 'Col', card: 'Card',
   'card-header': 'Card header', 'card-body': 'Card body', field: 'Field', text: 'Text',
+  ul: 'Bullet list', ol: 'Numbered list', li: 'List item', table: 'Table', tr: 'Table row',
+  th: 'Header cell (th)', td: 'Data cell (td)', image: 'Image',
 };
+
+const fieldTypeNames = {
+  string: 'String', number: 'Number', text: 'Text area', checkbox: 'Checkbox',
+  select: 'Dropdown', suggest: 'Suggest', image: 'Image ID',
+};
+
+function usedNamesExcept(node) {
+  const used = T.fieldNames(state.project.root);
+  used.delete(node.props.name);
+  return used;
+}
+
+// setFieldLabel changes a field's label. While the name still follows the label,
+// the name follows the new label too (if that name is valid and free).
+function setFieldLabel(node, label) {
+  const p = node.props;
+  const auto = !p.required && p.name === T.toFieldName(p.label || '');
+  p.label = label;
+  if (auto) {
+    const name = T.toFieldName(label);
+    if (name && !T.fieldNameError(name, state.rules, usedNamesExcept(node))) p.name = name;
+  }
+}
+
+function labeled(text, input) {
+  return h('label', { class: 'field' }, h('span', { textContent: text }), input);
+}
+
+function fieldPanel(node, out) {
+  const p = node.props;
+  const locked = !!p.required;
+
+  const typeSel = h('select', {
+    disabled: locked,
+    onchange: () => {
+      p.fieldType = typeSel.value;
+      if (p.fieldType === 'text' && !p.rows) p.rows = 3;
+      if ((p.fieldType === 'select' || p.fieldType === 'suggest') && !(p.options || []).length) {
+        p.options = ['Option 1', 'Option 2'];
+      }
+      changed();
+      renderSelection(node);
+    },
+  }, ...T.fieldTypes.map((t) => h('option', { value: t, textContent: fieldTypeNames[t], selected: t === p.fieldType })));
+  out.push(labeled('Type', typeSel));
+
+  const nameErr = h('p', { class: 'error' });
+  const nameInput = h('input', {
+    type: 'text', value: p.name, spellcheck: false, disabled: locked,
+    oninput: () => {
+      const v = nameInput.value.trim();
+      const msg = T.fieldNameError(v, state.rules, usedNamesExcept(node));
+      nameErr.textContent = msg;
+      nameInput.classList.toggle('invalid', !!msg);
+      if (msg) return;
+      p.name = v;
+      changed();
+    },
+  });
+  const labelInput = h('input', {
+    type: 'text', value: p.label || '',
+    oninput: () => {
+      setFieldLabel(node, labelInput.value);
+      nameInput.value = p.name;
+      nameErr.textContent = '';
+      nameInput.classList.remove('invalid');
+      changed();
+    },
+  });
+  out.push(labeled('Label', labelInput));
+  out.push(labeled('Field name', nameInput), nameErr);
+  if (locked) out.push(h('p', { class: 'hint', textContent: 'The name field is required. Only its label can change.' }));
+
+  const descInput = h('input', {
+    type: 'text', value: p.description || '', placeholder: 'Same as label',
+    oninput: () => {
+      if (descInput.value) p.description = descInput.value;
+      else delete p.description;
+      setDirty(true);
+    },
+  });
+  out.push(labeled('Description', descInput));
+
+  if (p.fieldType === 'number') {
+    const warn = h('p', { class: 'error' });
+    const checkRange = () => {
+      warn.textContent = p.min !== undefined && p.max !== undefined && p.min > p.max ? 'Min is greater than max.' : '';
+    };
+    for (const key of ['min', 'max']) {
+      const input = h('input', {
+        type: 'number', value: p[key] ?? '', placeholder: 'none',
+        oninput: () => {
+          if (input.value === '' || Number.isNaN(Number(input.value))) delete p[key];
+          else p[key] = Number(input.value);
+          checkRange();
+          setDirty(true);
+        },
+      });
+      out.push(labeled(key === 'min' ? 'Min' : 'Max', input));
+    }
+    out.push(warn);
+    checkRange();
+  }
+
+  if (p.fieldType === 'text') {
+    const input = h('input', {
+      type: 'number', min: 1, max: 20, value: p.rows ?? 3,
+      oninput: () => {
+        const v = Math.round(Number(input.value));
+        if (v >= 1 && v <= 20) {
+          p.rows = v;
+          setDirty(true);
+        }
+      },
+    });
+    out.push(labeled('Rows', input));
+  }
+
+  if (p.fieldType === 'select' || p.fieldType === 'suggest') {
+    const area = h('textarea', {
+      rows: 6, value: (p.options || []).join('\n'),
+      oninput: () => {
+        p.options = [...new Set(area.value.split('\n').map((x) => x.trim()).filter(Boolean))];
+        changed();
+      },
+    });
+    out.push(labeled('Values (one per line)', area));
+  }
+
+  const parent = T.find(state.project.root, node.id).parent;
+  if (parent && parent.type === 'tr') {
+    out.push(h('p', { class: 'hint', textContent: 'In a table row this field fills two cells: label (th) and value (td).' }));
+  }
+  out.push(h('p', { class: 'hint', textContent: 'Tip: double-click the label in the sheet to edit it.' }));
+}
 
 const colWidthKeys = [
   ['col', 'All sizes', 'col-x'],
@@ -236,22 +374,60 @@ function renderSelection(node) {
     out.push(h('label', { class: 'field' }, h('span', { textContent: 'Extra class' }), input), err);
   }
 
-  if (node.type === 'field') {
-    out.push(h('p', { class: 'hint', textContent: `Name: ${p.name} · Type: ${p.fieldType}` }));
-    out.push(h('p', { class: 'hint', textContent: 'Field settings come in milestone 3.' }));
-  }
+  if (node.type === 'field') fieldPanel(node, out);
 
   if (node.type === 'text') {
-    out.push(h('p', { class: 'hint', textContent: `Text: ${p.text || ''}` }));
-    out.push(h('p', { class: 'hint', textContent: 'Text editing comes in milestone 3.' }));
+    const input = h('input', {
+      type: 'text', value: p.text || '',
+      oninput: () => {
+        p.text = input.value;
+        changed();
+      },
+    });
+    out.push(labeled('Text', input));
+    out.push(h('p', { class: 'hint', textContent: 'Tip: double-click a text in the sheet to edit it there.' }));
+  }
+
+  if (node.type === 'image') {
+    const err = h('p', { class: 'error' });
+    const idInput = h('input', {
+      type: 'text', value: p.imageId || '', placeholder: 'e.g. 7978043', inputMode: 'numeric',
+      oninput: () => {
+        const v = idInput.value.trim();
+        const bad = !/^\d*$/.test(v);
+        err.textContent = bad ? 'Use digits only.' : '';
+        idInput.classList.toggle('invalid', bad);
+        if (bad) return;
+        p.imageId = v;
+        changed();
+      },
+    });
+    const wInput = h('input', {
+      type: 'number', min: 1, value: p.width ?? '', placeholder: 'natural size',
+      oninput: () => {
+        const v = Math.round(Number(wInput.value));
+        if (wInput.value === '' || !(v > 0)) delete p.width;
+        else p.width = v;
+        changed();
+      },
+    });
+    out.push(labeled('WA image ID', idInput), err, labeled('Width (px)', wInput));
+    out.push(h('p', { class: 'hint', textContent: 'Upload the image to WA. The ID is the number in its URL.' }));
+  }
+
+  if (['table', 'tr', 'th', 'td'].includes(node.type)) {
+    out.push(h('p', { class: 'hint', textContent: 'Right-click for rows, columns and cell type. Drop a field into a row: it fills a label cell and a value cell. Double-click an empty cell to type text.' }));
+  }
+  if (['ul', 'ol', 'li'].includes(node.type)) {
+    out.push(h('p', { class: 'hint', textContent: 'Right-click to add items. Double-click an empty item to type text. Fields can go into items.' }));
   }
 
   const root = state.project.root;
   const actions = h('div', { class: 'sel-actions' });
-  if (node.id !== root.id && !['card-header', 'card-body', 'text'].includes(node.type)) {
+  if (node.id !== root.id && !['card-header', 'card-body'].includes(node.type)) {
     actions.append(h('button', { type: 'button', textContent: 'Duplicate', onclick: () => editor.duplicate(node.id) }));
   }
-  if (node.id !== root.id && node.type !== 'text') {
+  if (node.id !== root.id) {
     const can = T.canRemove(root, node.id);
     actions.append(h('button', {
       type: 'button', class: 'danger', textContent: 'Delete', disabled: !can,
@@ -464,6 +640,7 @@ async function start() {
       bannedWords: rules.bannedWords,
       sheetNameRe: new RegExp(rules.sheetNamePattern),
       classNameRe: new RegExp(rules.classNamePattern),
+      fieldNameRe: new RegExp(rules.fieldNamePattern),
       forbiddenPrefixes: rules.forbiddenPrefixes,
     };
     setProject(await api('GET', '/api/project/new'), '');

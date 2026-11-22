@@ -196,3 +196,18 @@ func TestClassNameRules(t *testing.T) {
 		}
 	}
 }
+
+func TestFieldNameRules(t *testing.T) {
+	ok := []string{"name", "hp_max", "att_value_001", "sk2"}
+	bad := []string{"", "Name", "hp-max", "_hp", "hp_", "hp__max", "1hp", "description", "my field"}
+	for _, n := range ok {
+		if err := validateFieldName(n); err != nil {
+			t.Errorf("%q: unexpected error %v", n, err)
+		}
+	}
+	for _, n := range bad {
+		if err := validateFieldName(n); err == nil {
+			t.Errorf("%q: expected an error", n)
+		}
+	}
+}

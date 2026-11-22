@@ -84,6 +84,7 @@ func (s *server) rules(w http.ResponseWriter, r *http.Request) {
 		"bannedWords":       bannedWords,
 		"sheetNamePattern":  sheetNameRe.String(),
 		"classNamePattern":  classNameRe.String(),
+		"fieldNamePattern":  fieldNameRe.String(),
 		"forbiddenPrefixes": forbiddenClassPrefixes,
 	})
 }

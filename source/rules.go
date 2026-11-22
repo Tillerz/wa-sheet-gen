@@ -26,6 +26,9 @@ var sheetNameRe = regexp.MustCompile(`^[a-z0-9]+(-[a-z0-9]+)*$`)
 // classNameRe is the rule for user-given CSS class names, e.g. card classes.
 var classNameRe = regexp.MustCompile(`^[a-z][a-z0-9]*(-[a-z0-9]+)*$`)
 
+// fieldNameRe is the rule for field names (bible 3.4): lowercase words joined by single _.
+var fieldNameRe = regexp.MustCompile(`^[a-z][a-z0-9]*(_[a-z0-9]+)*$`)
+
 // forbiddenClassPrefixes are filtered by WA (bible 3.1).
 var forbiddenClassPrefixes = []string{"sh", "py"}
 
@@ -52,6 +55,17 @@ func validateClassName(name string) error {
 	}
 	if w := findBannedWord(name); w != "" {
 		return fmt.Errorf("class %q contains the filtered word %q", name, w)
+	}
+	return nil
+}
+
+// validateFieldName checks a field name (bible 3.4). Field names become class names, so banned words count.
+func validateFieldName(name string) error {
+	if !fieldNameRe.MatchString(name) {
+		return fmt.Errorf("field name %q: start with a-z, then use only a-z, 0-9 and single _ between words", name)
+	}
+	if w := findBannedWord(name); w != "" {
+		return fmt.Errorf("field name %q contains the filtered word %q", name, w)
 	}
 	return nil
 }
