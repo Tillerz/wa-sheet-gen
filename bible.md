@@ -6,13 +6,13 @@ A standalone Windows app to design World Anvil (WA) character sheets / stat bloc
 
 | File | Content |
 | --- | --- |
-| `approved.css` | `@font-face` definitions only |
+| `approved.css` | `@font-face` definitions, plus CSS that the normal filter removes (see 3.1) |
 | `style.css` | all other CSS |
 | `import-to-wa.yml` | field (data) definitions |
 | `basic-sheet.html.twig` | view: shows a sheet with its saved data |
 | `edit-form.html.twig` | form: lets the user enter data |
 
-The app's own project file is the source of truth. The five WA files are an **export**, generated from it.
+The app's own project file (`project.json`) is the source of truth. The five WA files are an **export**, generated from it.
 
 ## 2. Folders
 
@@ -24,31 +24,38 @@ The app's own project file is the source of truth. The five WA files are an **ex
 ### 3.1 CSS
 
 - All CSS goes into the two CSS files. No `style=` attributes and no `<style>` in the twig files.
-- `approved.css` contains only `@font-face` blocks. Fonts load directly from a font file URL (`.woff2`, `.otf`, …). No `@import`, no external CSS files.
-- No class name may start with `sh` or `py` (selector `.sh…` / `.py…`). See open question Q1.
+- **`approved.css`** goes into a special WA field with fewer security filters. Only WA developers and the sheet author can edit it. It holds:
+  - `@font-face` blocks. Fonts load directly from a font file URL (`.woff2`, `.otf`, …). No `@import`, no external CSS files.
+  - CSS that the normal `style.css` filter removes, e.g. gradients (`linear-gradient(…)`). See Q2.
+- **`style.css`** holds everything else.
+- No class name may start with `sh` or `py` (selector `.sh…` / `.py…`).
 - The sequence `);` must never appear. The WA security filter removes it. Fix: put a space between, e.g. `var(--dark) ;`. The generator does this automatically wherever needed.
 - No `'` and no `"` anywhere in CSS files. Font names with spaces go unquoted (`font-family: IM Fell English SC`).
 - No `%` inside `( )`. So no `rgb(10%, …)`, no `calc(50% …)`. Colors are written as hex (`#a000a0`) or WA theme variables (`var(--dark)`, `var(--light)`).
+- The three character rules above apply to both CSS files until Q1 says otherwise.
+- Every generated selector starts with the root class `.block-<sheetname>`, so sheet CSS cannot leak into the rest of the WA page.
 
 ### 3.2 YAML (`import-to-wa.yml`)
 
 - First line is always `fields:`.
 - Indent: 2 spaces. No tabs.
+- Keys are the field names (`hp_max:`). WA turns spaces in keys into underscores on import, so `hp max:` (as in the examples) and `hp_max:` give the same variable. The generator writes the underscore form.
 - No duplicate keys. The exporter refuses to write a file with duplicates.
 - String values in double quotes (`label: "hp max"`).
 
 ### 3.3 Twig / HTML
 
+- **No JavaScript** in any exported file: no `<script>`, no `on…=` event attributes, no `javascript:` links. Only HTML, CSS and Twig. User-entered text is HTML-escaped on export.
 - Generated HTML uses single quotes for attributes, like the examples.
 - Data is read as `{{variables.<field_name>|default}}`.
 - The root element is always:
 
   ```html
-  <div class='container-fluid sheet-<sheetname>'>
+  <div class='container-fluid block-<sheetname>'>
   </div>
   ```
 
-  `<sheetname>` follows the class naming rule (3.4).
+  `<sheetname>` follows the naming rule (3.4).
 - Element `id`s must be unique. The generator only writes ids where needed (form inputs, `label for=`). The examples reuse ids like `card-personal`. Do not copy that.
 - Font Awesome icons (`fa-solid`, `fa-regular`) are available on WA. The examples use them.
 
@@ -58,9 +65,9 @@ The app's own project file is the source of truth. The five WA files are an **ex
 | --- | --- | --- |
 | Field name | lowercase `a-z`, `0-9`, `_` only; starts with a letter; no `__`, no `_` at start or end | `hp_max` |
 | Class name for a field | field name with `_` → `-` | `hp-max` |
-| YAML key | field name with `_` → space (as in all examples). See Q2. | `hp max` |
+| YAML key | field name | `hp_max` |
 | Twig variable | field name | `variables.hp_max` |
-| Sheet name | lowercase `a-z`, `0-9`, `-` | `sheet-nimble` |
+| Sheet name | lowercase `a-z`, `0-9`, `-` | `nimble` → `block-nimble` |
 
 The app derives the field name from the label as you type (`HP Max` → `hp_max`). You can override it, but it must pass the rule. Field names must be unique in a sheet.
 
@@ -77,7 +84,7 @@ All types found in the three examples:
 | Type | YAML | Form (edit-form) | Sheet (basic-sheet) |
 | --- | --- | --- | --- |
 | **String** | `input: string` | `<input type='text'>` | `{{variables.x\|default}}` |
-| **Number** | `input: integer`, optional `min:` | `<input type='number'>` (+ `min=`) | `{{variables.x\|default}}` |
+| **Number** | `input: integer`, optional `min:`, `max:` | `<input type='number'>` (+ `min=`, `max=`) | `{{variables.x\|default}}` |
 | **Text area** | `input: text`, `rows: N` (default 3) | `<textarea rows='N'>` | `{{variables.x\|default\|nl2br}}` |
 | **Checkbox** | `input: checkbox` | hidden input `value='0'` + checkbox `value='1'` with the same `name` (see 4.3) | Font Awesome icon: `fa-square-check` if 1, `fa-square` if not |
 | **Dropdown** | `input: select` + `options:` map | `<select>` with one `<option>` per value | `{{variables.x\|default}}` |
@@ -87,7 +94,7 @@ All types found in the three examples:
 Per type, the field dialog asks for:
 
 - all types: label, field name, description (YAML `description`)
-- Number: min (optional)
+- Number: min, max (both optional)
 - Text area: rows
 - Dropdown / Suggest: list of values, one per line
 
@@ -100,7 +107,7 @@ The datalist is written out directly per field. No twig macro needed.
 String field `hp_max`, label `hp max`:
 
 ```yaml
-  hp max:
+  hp_max:
     label: "hp max"
     input: string
     description: "hp max"
@@ -121,7 +128,7 @@ Inside a table, the label goes into `<th>` and the value into `<td>` (as in the 
 Checkbox in the form:
 
 ```twig
-<input value='0' name='wounds_001' type='hidden' /><input value='1' {% if variables.wounds_001|default > 0 %}checked='checked'{% endif %} id='wounds_001' name='wounds_001' type='checkbox' />
+<input value='0' name='wounds' type='hidden' /><input value='1' {% if variables.wounds|default > 0 %}checked='checked'{% endif %} id='wounds' name='wounds' type='checkbox' />
 ```
 
 Classes: sheet uses `lbl` / `var`, form uses `ilbl` / `ivar`, plus a per-field class (`lbl-hp-max`, `var-hp-max`, …). This lets one CSS file style both views.
@@ -175,13 +182,13 @@ Classes: sheet uses `lbl` / `var`, form uses `ilbl` / `ivar`, plus a per-field c
   - a drop indicator shows where the element will land; disallowed targets show no indicator
 - **Double-click** edits text in place (static text, labels, card-header text, li, cells).
 - **Right-click** menu per element: delete, duplicate, format, plus the element's own actions (5.3, 5.4).
-- **Duplicate** on a field (or a container with fields) gives the copies new field names: a numeric suffix is added or increased (`wounds_001` → `wounds_002`). Numbers use 3 digits, as in the examples.
+- **Duplicate** copies an element. Copied fields get a new unique name (a numeric suffix is added or increased: `weapon` → `weapon_2`). For many numbered entries, use lists (section 11, version 2).
 - **View switch**: Layout (editing) / Sheet preview / Form preview. Previews render with sample data.
 - Look: modern, clean, light and dark mode, fast. No external JavaScript libraries.
 
 ## 7. Formatting
 
-Toolbar buttons and the right-click menu, for the selected element or text:
+Toolbar buttons and the right-click menu, for the selected element:
 
 - align left / center / right
 - bold, italic, underline
@@ -191,27 +198,32 @@ Toolbar buttons and the right-click menu, for the selected element or text:
 
 Rules:
 
-- Bold / italic / underline inside text use `<b>`, `<i>`, `<u>`. These are HTML, not CSS.
-- Everything else becomes a CSS class in `style.css`. Elements get a generated class (`f-1`, `f-2`, …) only when they have formatting. Identical formatting shares one class.
-- **Fonts**: a sheet font list. Each entry has a name and a direct font file URL and becomes one `@font-face` block in `approved.css`. One font can be the sheet default (set on `.container-fluid`).
+- **All formatting goes into CSS**, including bold, italic and underline. No `<b>`, `<i>`, `<u>` tags in the twig files. So the look can be changed in the CSS without touching the sheet code.
+- Formatting applies to a whole element, not to single words inside a text.
+- The CSS rule uses the element's own class:
+  - fields: their field classes (`.block-nimble .var-hp-max { font-weight: bold }`)
+  - cards: their card class (`.block-nimble .skills .card-header { … }`)
+  - other elements get a generated class (`f-1`, `f-2`, …) only when they have formatting
+- **Fonts**: a sheet font list. Each entry has a name and a direct font file URL and becomes one `@font-face` block in `approved.css`. One font can be the sheet default (set on the root class).
+- **Custom CSS**: the project has two free text boxes, one for extra `style.css` and one for extra `approved.css`. Their content is added at the end of the exported files and is checked by the validator. Edit custom CSS here, not in the exported files: the next export overwrites the exported files.
 
 ## 8. Save, load, export
 
-### 8.1 Project file
+### 8.1 Project folder
 
-- Format: JSON, extension `.washeet.json`, with a `version` number for future migrations.
-- Holds the sheet name, font list, formats, and the full element tree with all field settings.
-- Save / Save as / Open / New. Unsaved changes are marked in the title and prompt before closing or opening another file.
+- One folder per sheet. It holds `project.json` and the five exported files.
+- `project.json` holds the sheet name, font list, formats, custom CSS, and the full element tree with all field settings. It has a `version` number for future format changes.
+- New / Open (choose a folder) / Save / Save as. Unsaved changes are marked in the title and prompt before closing or opening another project.
 
 ### 8.2 Export
 
-- Writes the five files into a chosen folder. Default: `<project folder>/<sheetname>/`.
+- Writes the five files into the project folder.
 - Validation (section 9) runs first. Errors stop the export. Warnings do not.
-- Files are UTF-8 **without** BOM. (Some example files start with a BOM.)
+- Files are UTF-8 without BOM.
 
 ### 8.3 Importing existing WA files — not supported
 
-Hand-written sheets like the examples use twig loops, macros, `{% set %}` variables and conditions. These cannot be mapped back to a visual layout reliably. So the app only reopens its own project files. See Q3 for a possible later extension.
+Hand-written sheets like the examples use twig loops, macros, `{% set %}` variables and conditions. These cannot be mapped back to a visual layout reliably. So the app only opens its own `project.json`.
 
 ## 9. Validation
 
@@ -220,9 +232,11 @@ Runs on export and on demand (a "Check" button), with a list of problems that li
 - **Errors** (export blocked):
   - CSS contains `);`, `'`, `"`, or `%` inside `( )`
   - a class name starts with `sh` or `py`
+  - JavaScript in any exported file (3.3)
   - a field name breaks the naming rule, or two fields share a name
   - `name` field missing
   - Dropdown or Suggest field with no values
+  - Number field with min greater than max
   - duplicate YAML keys
 - **Warnings**:
   - empty card, row without cols, col without content
@@ -235,34 +249,51 @@ Runs on export and on demand (a "Check" button), with a list of problems that li
 - The server listens on `127.0.0.1` only, on a free random port. A random token in the start URL is required for every API call, so other websites cannot talk to it.
 - The console window stays open while the app runs. Closing it quits the app.
 - Generation and validation run in Go and are covered by unit tests with golden files (expected output files).
-- File access (open, save, export) goes through the Go server. The UI shows a simple folder/file browser.
+- File access (open, save, export) goes through the Go server. The UI shows a simple folder browser.
 - **Build** (from WSL/Linux): `GOOS=windows GOARCH=amd64 go build -o wa-sheet-gen.exe ./source`.
-- **Bootstrap** for the canvas: an embedded copy of the Bootstrap CSS (CSS only, no Bootstrap JavaScript). See Q4.
+- **Bootstrap 5.0.1**, the version WA uses. The canvas uses an embedded copy of `https://cdn.jsdelivr.net/npm/bootstrap@5.0.1/dist/css/bootstrap.min.css` (CSS only, no Bootstrap JavaScript). It is downloaded once during development and stored in the repo. The app makes no network calls at runtime, except loading font URLs on the canvas.
 
-## 11. Not in version 1
+## 11. Version 2: lists
 
+Sheets often repeat a block, e.g. 10 skills or 4 weapons. Version 2 exports these as a Twig loop around one block, as the examples do, instead of 10 copies.
+
+- Right-click on a container → **Make list** → choose the number of entries.
+- The fields inside get numbered names on WA: `weapon_name` → `weapon_name_001` … `weapon_name_004` (3 digits, as in the examples).
+- Twig output, following the examples:
+
+  ```twig
+  {% for i in 1..4 %}
+    {% set id = i %}{% if id < 10 %}{% set id = '0' ~ id %}{% endif %}{% if id < 100 %}{% set id = '0' ~ id %}{% endif %}
+    … {{attribute(variables, 'weapon_name_' ~ id)|default}} …
+  {% endfor %}
+  ```
+
+- YAML has no loops, so the YAML still lists every entry (`weapon_name_001` … `weapon_name_004`). The app writes these automatically.
+- Changing the number later is one setting in the app: it updates the loop range and the YAML entries.
+- Optional per-entry labels from a list (like `skill_list` in nimble) are a later idea.
+
+## 12. Not in version 1
+
+- Lists / Twig loops (section 11)
 - Importing hand-written WA sheets (8.3)
-- Twig loops in the export: repeated elements export as flat, numbered copies
 - Themes switched by a field (like daggerheart's vivid/dark)
+- Formatting single words inside a text
 - Undo/redo beyond a simple history (open for discussion)
 - Own app window (option B: WebView2)
 
-## 12. Open questions
+## 13. Open questions
 
-- **Q1 — `.sh` rule vs. `sheet-` class**: the root class `sheet-<name>` starts with `sh`. If the rule is true, no CSS selector can use it. But the working daggerheart `style.css` uses `.sheet.vivid` and `.sheet-daggerheart.form a`. Is the rule real, and what exactly is filtered? Until then, generated CSS scopes with `.container-fluid` (as nimble does) and never writes `.sheet…` selectors.
-- **Q2 — YAML key format**: all examples use spaces (`hp max:`) and WA maps them to `variables.hp_max`. Does WA also accept `hp_max:` as a key? If yes, use the field name directly.
-- **Q3 — reopen exported files**: the export could hide the project JSON in a twig comment (`{# … #}`) in `basic-sheet.html.twig`. Then an exported set could be reopened. Needs a test whether WA keeps or strips twig comments, and size limits.
-- **Q4 — Bootstrap version**: which Bootstrap version does WA use for sheets? The canvas CSS must match it.
-- **Q5 — Number `max`**: the examples only use `min`. Does WA support `max:` in the YAML?
-- **Q6 — `approved.css` content**: the daggerheart `approved.css` also holds two `.card-header` gradient rules. Is that needed (e.g. because `style.css` filters something), or was it a shortcut?
+- **Q1 — character rules in `approved.css`**: do `);`, quotes and `%` inside `( )` also break `approved.css`? Until known, the generator applies the same rules to both files. (The daggerheart `approved.css` follows them.)
+- **Q2 — what the `style.css` filter removes**: gradients are known. Which other CSS does it remove (e.g. `url(…)`, `border-image`)? The daggerheart `style.css` uses `url(/i/…/render)` and `border-image`, so those seem fine. The generator moves every known-filtered property to `approved.css`.
 
-## 13. Milestones
+## 14. Milestones
 
 Each step ends with a check.
 
-1. **Skeleton**: Go server, embedded UI, browser opens, token check, New/Open/Save of an empty project. → check: start the exe on Windows, save, reopen.
+1. **Skeleton**: Go server, embedded UI, browser opens, token check, New/Open/Save of an empty project, Bootstrap CSS stored in the repo. → check: start the exe on Windows, save, reopen.
 2. **Layout editor**: rows, cols, cards, drag and drop, col resize, context menus. → check: rebuild the nimble layout by hand.
-3. **Content**: all field types, ul/ol, tables, static text/image, double-click editing, duplicate with numbering. → check: rebuild the nimble fields.
+3. **Content**: all field types, ul/ol, tables, static text/image, double-click editing, duplicate. → check: rebuild the nimble fields.
 4. **Export + validation**: generator, validator, golden-file tests. → check: `go test ./...` passes; upload the exported nimble rebuild to WA and confirm sheet and form work.
-5. **Formatting + fonts**: toolbar, generated classes, font list. → check: CSS passes validation; looks right in WA.
+5. **Formatting + fonts + custom CSS**: toolbar, generated classes, font list. → check: CSS passes validation; looks right in WA.
 6. **Polish**: previews with sample data, dark mode, keyboard shortcuts.
+7. **Version 2**: lists (section 11).
