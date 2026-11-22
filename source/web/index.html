@@ -11,8 +11,8 @@
     <nav class="actions">
       <button id="btnNew" type="button">New</button>
       <button id="btnOpen" type="button">Open…</button>
-      <button id="btnSave" type="button" class="primary">Save</button>
-      <button id="btnSaveAs" type="button">Save as…</button>
+      <button id="btnSave" type="button" title="Save (Ctrl+S)">Save</button>
+      <button id="btnSaveAs" type="button" title="Save as (Ctrl+Shift+S)">Save as…</button>
     </nav>
     <div class="doc-title" id="docTitle"></div>
     <nav class="actions">
@@ -26,7 +26,7 @@
   </header>
 
   <main class="workspace">
-    <aside class="palette">
+    <aside class="palette" id="palette">
       <h2>Layout</h2>
       <div class="palette-item" draggable="true" data-type="row"><span class="pi-icon">▭</span>Row</div>
       <div class="palette-item" draggable="true" data-type="col"><span class="pi-icon">▯</span>Col</div>
@@ -46,9 +46,15 @@
       <div class="palette-item" draggable="true" data-type="field:suggest"><span class="pi-icon">⌕</span>Suggest</div>
       <div class="palette-item" draggable="true" data-type="field:image"><span class="pi-icon">▣</span>Image ID</div>
       <p class="hint">Drag an element into the sheet. It can only land where it is allowed.</p>
+      <p class="hint">Keys: Delete removes, Ctrl+D duplicates, Ctrl+Z / Ctrl+Y undo and redo, Ctrl+S saves, Esc deselects.</p>
     </aside>
     <section class="canvas-wrap">
       <div class="canvas-bar">
+        <div class="segmented" id="viewSwitch" title="Layout: edit. Sheet / Form: how WA shows it, with sample data">
+          <button type="button" data-view="layout" class="active">Layout</button>
+          <button type="button" data-view="sheet">Sheet</button>
+          <button type="button" data-view="form">Form</button>
+        </div>
         <div class="segmented" id="bpSwitch" title="Screen size: sets the canvas width and which col width you change">
           <button type="button" data-bp="col">All sizes</button>
           <button type="button" data-bp="md">Medium</button>
@@ -62,6 +68,7 @@
           <button type="button" data-prop="italic" title="Italic" class="i">I</button>
           <button type="button" data-prop="underline" title="Underline" class="u">U</button>
         </div>
+        <button type="button" id="btnOutlines" class="small toggle" title="Show the dashed outlines of rows, cols, lists and cells">▦ Outlines</button>
         <button type="button" id="btnTheme" class="small" title="Canvas background (only in the editor, not exported)"></button>
       </div>
       <div class="canvas-scroll">

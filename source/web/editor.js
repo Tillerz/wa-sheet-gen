@@ -18,6 +18,8 @@ export function createEditor({ iframe, getProject, onChange, onSelect, openMenu,
   let indicator = null;
   let resizing = false;
   let editing = null; // { el, done }
+  let mode = 'layout'; // 'layout' (editing), 'sheet' or 'form' (read-only previews)
+  let previewHtml = { sheet: '', form: '' };
 
   const root = () => getProject().root;
 
@@ -170,8 +172,28 @@ export function createEditor({ iframe, getProject, onChange, onSelect, openMenu,
     if (!doc || !getProject()) return;
     indicator = null;
     editing = null;
+    doc.body.classList.toggle('preview', mode !== 'layout');
+    if (mode !== 'layout') {
+      // Made by the Go export code from escaped data, and checked to contain no script.
+      doc.getElementById('sheet').innerHTML = previewHtml[mode];
+      return;
+    }
     doc.getElementById('sheet').replaceChildren(renderNode(root(), null));
+    if (selectedId) elsFor(selectedId).forEach((e) => e.classList.add('ed-selected'));
   }
+
+  function setMode(m) {
+    mode = m;
+    endDrag();
+    render();
+  }
+
+  function setPreviewHtml(html) {
+    previewHtml = html;
+    if (mode !== 'layout') render();
+  }
+
+  const editable = () => mode === 'layout';
 
   function elsFor(id) {
     return doc ? [...doc.querySelectorAll(`[data-id="${CSS.escape(id)}"]`)] : [];
@@ -316,7 +338,7 @@ export function createEditor({ iframe, getProject, onChange, onSelect, openMenu,
   }
 
   function onDragStart(e) {
-    if (resizing || editing) {
+    if (resizing || editing || !editable()) {
       e.preventDefault();
       return;
     }
@@ -328,7 +350,7 @@ export function createEditor({ iframe, getProject, onChange, onSelect, openMenu,
   }
 
   function onDragOver(e) {
-    if (!drag) return;
+    if (!drag || !editable()) return;
     const t = dropTarget(e);
     if (!t) {
       hideIndicator();
@@ -340,7 +362,7 @@ export function createEditor({ iframe, getProject, onChange, onSelect, openMenu,
   }
 
   function onDrop(e) {
-    if (!drag) return;
+    if (!drag || !editable()) return;
     e.preventDefault();
     const t = dropTarget(e);
     const d = drag;
@@ -363,7 +385,7 @@ export function createEditor({ iframe, getProject, onChange, onSelect, openMenu,
   // ---------- col resize ----------
 
   function onPointerDown(e) {
-    if (!e.target.classList.contains('ed-resize')) return;
+    if (!editable() || !e.target.classList.contains('ed-resize')) return;
     e.preventDefault();
     e.stopPropagation();
     const colEl = e.target.parentElement;
@@ -474,7 +496,7 @@ export function createEditor({ iframe, getProject, onChange, onSelect, openMenu,
   }
 
   function onDblClick(e) {
-    if (editing) return;
+    if (editing || !editable()) return;
     const el = e.target.closest && e.target.closest('[data-id]');
     if (!el) return;
     const n = T.find(root(), el.dataset.id);
@@ -590,6 +612,7 @@ export function createEditor({ iframe, getProject, onChange, onSelect, openMenu,
   }
 
   function onContextMenu(e) {
+    if (!editable()) return;
     e.preventDefault();
     if (editing) return;
     const el = e.target.closest && e.target.closest('[data-id]');
@@ -630,12 +653,14 @@ export function createEditor({ iframe, getProject, onChange, onSelect, openMenu,
   // ---------- wiring ----------
 
   function onClick(e) {
+    if (!editable()) return;
     if (editing && editing.el.contains(e.target)) return;
     const el = e.target.closest && e.target.closest('[data-id]');
     select(el ? el.dataset.id : root().id);
   }
 
   function onMouseOver(e) {
+    if (!editable()) return;
     doc.querySelectorAll('.ed-hover').forEach((x) => x.classList.remove('ed-hover'));
     const el = e.target.closest && e.target.closest('[data-id]');
     if (el) el.classList.add('ed-hover');
@@ -666,6 +691,9 @@ export function createEditor({ iframe, getProject, onChange, onSelect, openMenu,
   return {
     render,
     select,
+    setMode,
+    setPreviewHtml,
+    get mode() { return mode; },
     setBreakpoint,
     startNewDrag,
     endDrag,

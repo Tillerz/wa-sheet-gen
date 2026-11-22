@@ -1,0 +1,96 @@
+package main
+
+import (
+	"regexp"
+	"strings"
+)
+
+// The previews render the exported Twig with sample data. This is not a Twig engine:
+// it only knows the few patterns our generator writes (see export.go).
+
+var (
+	twigIfGt0Re = regexp.MustCompile(`(?s)\{% if variables\.([a-z0-9_]+)\|default > 0 %\}(.*?)(?:\{% else %\}(.*?))?\{% endif %\}`)
+	twigIfEqRe  = regexp.MustCompile(`(?s)\{% if variables\.([a-z0-9_]+)\|default == '((?:[^'\\]|\\.)*)' %\}(.*?)\{% endif %\}`)
+	twigNl2brRe = regexp.MustCompile(`\{\{variables\.([a-z0-9_]+)\|default\|nl2br\}\}`)
+	twigVarRe   = regexp.MustCompile(`\{\{variables\.([a-z0-9_]+)(?:\|default)?\}\}`)
+	bbImgRe     = regexp.MustCompile(`\[img:([0-9]+)\]`)
+	twigUnquote = strings.NewReplacer(`\'`, `'`, `\\`, `\`)
+)
+
+// sampleData gives every field a value to show in the previews.
+func sampleData(p *Project) map[string]string {
+	vars := map[string]string{}
+	eachField(p.Root, func(n *Node) {
+		name := propString(n, "name")
+		label := strings.TrimSpace(propString(n, "label"))
+		if label == "" {
+			label = strings.ReplaceAll(name, "_", " ")
+		}
+		switch propString(n, "fieldType") {
+		case "number":
+			v := 3.0
+			if m, ok := propNumber(n, "min"); ok && m > v {
+				v = m
+			}
+			if m, ok := propNumber(n, "max"); ok && m < v {
+				v = m
+			}
+			vars[name] = num(v)
+		case "text":
+			vars[name] = "Sample " + label + ",\nsecond line."
+		case "checkbox":
+			vars[name] = "1"
+		case "select", "suggest":
+			if opts := propStrings(n, "options"); len(opts) > 0 {
+				vars[name] = opts[0]
+			}
+		case "image":
+			vars[name] = "1234"
+		default:
+			if name == "name" {
+				vars[name] = "Aria Windwalker"
+			} else {
+				vars[name] = "Sample " + label
+			}
+		}
+	})
+	return vars
+}
+
+func isPositive(s string) bool {
+	s = strings.TrimSpace(s)
+	return s != "" && s != "0" && !strings.HasPrefix(s, "-")
+}
+
+// renderPreview fills our generated Twig with vars. Values are HTML-escaped like Twig does.
+func renderPreview(twig string, vars map[string]string) string {
+	out := twigIfGt0Re.ReplaceAllStringFunc(twig, func(m string) string {
+		g := twigIfGt0Re.FindStringSubmatch(m)
+		if isPositive(vars[g[1]]) {
+			return g[2]
+		}
+		return g[3]
+	})
+	out = twigIfEqRe.ReplaceAllStringFunc(out, func(m string) string {
+		g := twigIfEqRe.FindStringSubmatch(m)
+		if vars[g[1]] == twigUnquote.Replace(g[2]) {
+			return g[3]
+		}
+		return ""
+	})
+	out = twigNl2brRe.ReplaceAllStringFunc(out, func(m string) string {
+		g := twigNl2brRe.FindStringSubmatch(m)
+		return strings.ReplaceAll(esc(vars[g[1]]), "\n", "<br>\n")
+	})
+	out = twigVarRe.ReplaceAllStringFunc(out, func(m string) string {
+		return esc(vars[twigVarRe.FindStringSubmatch(m)[1]])
+	})
+	// WA turns [img:ID] into the image; the preview shows a box instead.
+	return bbImgRe.ReplaceAllString(out, "<span class='ed-img-ph'>WA image $1</span>")
+}
+
+// previewHTML returns the sheet and the form as they would look on WA with sample data.
+func previewHTML(p *Project) (sheet, form string) {
+	vars := sampleData(p)
+	return renderPreview(genTwig(p, false), vars), renderPreview(genTwig(p, true), vars)
+}

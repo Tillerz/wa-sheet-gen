@@ -148,15 +148,36 @@ function isTyping(target) {
   return !!target && (target.isContentEditable || ['INPUT', 'TEXTAREA', 'SELECT'].includes(target.tagName));
 }
 
+// Keyboard shortcuts. They work in the app and in the canvas, but not while typing.
 function onShortcut(e) {
-  if (!(e.ctrlKey || e.metaKey) || isTyping(e.target)) return;
   const k = e.key.toLowerCase();
-  if (k === 'z' && !e.shiftKey) {
+  const ctrl = e.ctrlKey || e.metaKey;
+  // Saving also works while typing in a field.
+  if (ctrl && k === 's') {
+    e.preventDefault();
+    if (e.shiftKey) doSaveAs();
+    else doSave();
+    return;
+  }
+  if (isTyping(e.target) || document.querySelector('dialog[open]')) return;
+  const sel = editor.selectedId;
+  const layout = editor.mode === 'layout';
+  if (ctrl && k === 'z' && !e.shiftKey) {
     e.preventDefault();
     undo();
-  } else if (k === 'y' || (k === 'z' && e.shiftKey)) {
+  } else if (ctrl && (k === 'y' || (k === 'z' && e.shiftKey))) {
     e.preventDefault();
     redo();
+  } else if (ctrl && k === 'd' && sel && layout) {
+    e.preventDefault();
+    const n = T.find(state.project.root, sel);
+    if (n && n.parent && !['card-header', 'card-body'].includes(n.node.type)) editor.duplicate(sel);
+  } else if (!ctrl && k === 'delete' && sel && layout) {
+    e.preventDefault();
+    if (T.canRemove(state.project.root, sel)) editor.remove(sel);
+    else toast('This element holds the name field and cannot be deleted.');
+  } else if (!ctrl && k === 'escape') {
+    editor.select(null);
   }
 }
 
@@ -165,6 +186,8 @@ function updateTitle() {
   $('docTitle').textContent = (state.dirty ? '● ' : '') + name;
   document.title = (state.dirty ? '● ' : '') + name + ' — WA Sheet Generator';
   $('folderPath').textContent = state.folder || 'Not saved yet';
+  // The Save button is only highlighted when there is something to save.
+  $('btnSave').classList.toggle('primary', state.dirty);
 }
 
 function setProject(project, folder) {
@@ -241,6 +264,7 @@ async function runPreview() {
     state.formatClasses = classes;
     previewCss = res.css || '';
     applyCanvasCss();
+    editor.setPreviewHtml({ sheet: res.sheetHtml || '', form: res.formHtml || '' });
     if (classesChanged && !editor.editing) editor.render();
   } catch {
     // The preview is only cosmetic; Check and Export report real problems.
@@ -267,14 +291,35 @@ function applyCanvasCss() {
 const ui = {
   look: 'fmt', // active field look in the format panel
   canvasTheme: localStorage.getItem('canvasTheme') || 'dark',
+  outlines: localStorage.getItem('outlines') !== 'off',
 };
 
 function applyCanvasTheme() {
   const doc = canvasDocument();
-  if (doc) doc.body.classList.toggle('dark', ui.canvasTheme === 'dark');
+  if (doc) {
+    doc.body.classList.toggle('dark', ui.canvasTheme === 'dark');
+    doc.body.classList.toggle('clean', !ui.outlines);
+  }
+  $('btnOutlines').classList.toggle('active', ui.outlines);
   $('btnTheme').textContent = ui.canvasTheme === 'dark' ? '☾ Dark' : '☀ Light';
   $('canvas').classList.toggle('dark', ui.canvasTheme === 'dark');
 }
+
+$('btnOutlines').onclick = () => {
+  ui.outlines = !ui.outlines;
+  localStorage.setItem('outlines', ui.outlines ? 'on' : 'off');
+  applyCanvasTheme();
+};
+
+// View switch: Layout (editing) or the read-only Sheet and Form previews with sample data.
+document.querySelectorAll('#viewSwitch button').forEach((b) => {
+  b.addEventListener('click', () => {
+    document.querySelectorAll('#viewSwitch button').forEach((x) => x.classList.toggle('active', x === b));
+    openMenu(null);
+    editor.setMode(b.dataset.view);
+    $('palette').classList.toggle('disabled', b.dataset.view !== 'layout');
+  });
+});
 
 $('btnTheme').onclick = () => {
   ui.canvasTheme = ui.canvasTheme === 'dark' ? 'light' : 'dark';

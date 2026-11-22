@@ -195,7 +195,10 @@ Classes: sheet uses `lbl` / `var`, form uses `ilbl` / `ivar`, plus a per-field c
 - **Duplicate** copies an element. Copied fields get a new unique name (a numeric suffix is added or increased: `weapon` → `weapon_2`). For many numbered entries, use lists (section 11, version 2).
 - **Empty space**: when the cols of a row (at the current screen size) fill less than 12 columns, the free part shows as a striped "empty" box. An empty row shows "drop a col here".
 - **Undo / Redo**: buttons in the top bar, and Ctrl+Z / Ctrl+Y (Ctrl+Shift+Z). Each canvas change is one step; quick typing in the panel is grouped into one step. Undo back to the saved state clears the "unsaved" mark. Up to 200 steps.
-- **View switch**: Layout (editing) / Sheet preview / Form preview. Previews render with sample data.
+- **View switch**: Layout (editing) / Sheet preview / Form preview. The previews are the exported Twig, filled with sample data by a small renderer that knows only the patterns the generator writes (`source/preview.go`). They are read-only. `[img:ID]` shows as a box; Font Awesome icons show as simple stand-ins.
+- **Outlines** button: hides the dashed outlines of rows, cols, lists and cells and the "empty" markers, for a clean view while editing.
+- **Save** button: highlighted only when there are unsaved changes.
+- **Keyboard**: Ctrl+S save, Ctrl+Shift+S save as, Ctrl+Z / Ctrl+Y (Ctrl+Shift+Z) undo / redo, Ctrl+D duplicate, Delete remove, Esc deselect. Not while typing in a text box (except Ctrl+S).
 - **Canvas**: shows the real sheet CSS (made by the same Go code as the export, via `/api/preview`). Dark canvas by default, switchable to light (editor only, not exported). In the canvas, `--dark` is #222222 and `--light` is #f5f5f5; on WA the theme sets them.
 - **Version**: shown next to the app name at the top right; set in `source/version.go`.
 - Look: modern, clean, light and dark mode, fast. No external JavaScript libraries.
@@ -333,5 +336,5 @@ Each step ends with a check.
 3. **Content**: all field types, ul/ol, tables, static text/image, double-click editing, duplicate. → check: rebuild the nimble fields.
 4. **Export + validation**: generator, validator, golden-file tests. → check: `go test ./...` passes; upload the exported nimble rebuild to WA and confirm sheet and form work.
 5. **Formatting + fonts + custom CSS**: toolbar, borders and backgrounds, generated classes, font list. → check: CSS passes validation; looks right in WA.
-6. **Polish**: previews with sample data, dark mode, keyboard shortcuts.
+6. **Polish**: previews with sample data, outlines toggle, keyboard shortcuts. (The app follows the Windows light/dark setting.)
 7. **Version 2**: lists (section 11).

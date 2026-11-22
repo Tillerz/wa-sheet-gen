@@ -152,7 +152,8 @@ func (s *server) check(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, map[string]any{"problems": nonNil(problems)})
 }
 
-// preview returns the sheet CSS and the format classes for the canvas, without validation.
+// preview returns the sheet CSS, the format classes and the sheet and form previews
+// for the canvas, without validation.
 func (s *server) preview(w http.ResponseWriter, r *http.Request) {
 	var req struct {
 		Project *Project `json:"project"`
@@ -162,9 +163,12 @@ func (s *server) preview(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	classes, _ := formatClasses(req.Project)
+	sheet, form := previewHTML(req.Project)
 	writeJSON(w, map[string]any{
-		"css":     genApprovedCSS(req.Project) + genStyleCSS(req.Project),
-		"classes": classes,
+		"css":       genApprovedCSS(req.Project) + genStyleCSS(req.Project),
+		"classes":   classes,
+		"sheetHtml": sheet,
+		"formHtml":  form,
 	})
 }
 

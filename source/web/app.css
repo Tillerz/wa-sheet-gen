@@ -110,6 +110,8 @@ code {
 }
 .canvas-bar { display: flex; justify-content: center; align-items: center; gap: 10px; flex-wrap: wrap; }
 button.small { padding: 4px 10px; font-size: 12px; }
+button.toggle.active { border-color: var(--accent); color: var(--accent); }
+.palette.disabled .palette-item { opacity: 0.4; pointer-events: none; }
 .segmented button.b, .fmt-btn.b { font-weight: 700; }
 .segmented button.i, .fmt-btn.i { font-style: italic; }
 .segmented button.u, .fmt-btn.u { text-decoration: underline; }
