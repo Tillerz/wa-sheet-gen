@@ -59,7 +59,7 @@ export function createNode(type, nextId) {
     case 'row':
       return { id: nextId(), type: 'row', children: [] };
     case 'col':
-      return { id: nextId(), type: 'col', props: { col: 6 }, children: [] };
+      return { id: nextId(), type: 'col', props: { col: 12 }, children: [] };
     case 'card':
       return {
         id: nextId(), type: 'card', props: {}, children: [
@@ -124,7 +124,7 @@ export function insert(root, parentId, index, node) {
   const kids = (p.node.children ||= []);
   const i = Math.max(0, Math.min(index, kids.length));
   kids.splice(i, 0, node);
-  if (node.type === 'field' && p.node.type === 'tr') fitFieldInRow(p.node, i);
+  if (node.type === 'field' && p.node.type === 'tr') fitFieldInRow(p.node, i, cellCount(node));
 }
 
 function isEmptyCell(c) {
@@ -132,29 +132,40 @@ function isEmptyCell(c) {
     && (c.children || []).every((t) => t.type === 'text' && !(t.props && t.props.text));
 }
 
-// fitFieldInRow lets the field at index i take the place of up to two empty cells
+// fitFieldInRow lets the field at index i take the place of up to `need` empty cells
 // next to it (right side first), so the table keeps its number of columns.
-function fitFieldInRow(tr, i) {
+function fitFieldInRow(tr, i, need) {
   const kids = tr.children;
   let taken = 0;
-  while (taken < 2 && isEmptyCell(kids[i + 1])) {
+  while (taken < need && isEmptyCell(kids[i + 1])) {
     kids.splice(i + 1, 1);
     taken++;
   }
-  while (taken < 2 && i > 0 && isEmptyCell(kids[i - 1])) {
+  while (taken < need && i > 0 && isEmptyCell(kids[i - 1])) {
     kids.splice(i - 1, 1);
     i--;
     taken++;
   }
 }
 
-// takeOut removes n from its parent. A field leaving a table row leaves two
-// empty cells (th, td) behind. Returns how many cells were added.
+// fixRowCells keeps a table row's width when a field's label is set or cleared.
+// before is cellCount(node) from before the label change.
+export function fixRowCells(root, node, before) {
+  const n = find(root, node.id);
+  if (!n || !n.parent || n.parent.type !== 'tr') return;
+  const after = cellCount(node);
+  if (after < before) n.parent.children.splice(n.index + 1, 0, createNode('td', idGen(root)));
+  else if (after > before) fitFieldInRow(n.parent, n.index, after - before);
+}
+
+// takeOut removes n from its parent. A field leaving a table row leaves its
+// empty cells behind (th + td, or only td without a label). Returns how many cells were added.
 function takeOut(n, nextId) {
   n.parent.children.splice(n.index, 1);
   if (n.node.type !== 'field' || n.parent.type !== 'tr') return 0;
-  n.parent.children.splice(n.index, 0, createNode('th', nextId), createNode('td', nextId));
-  return 2;
+  const cells = cellCount(n.node) === 2 ? [createNode('th', nextId), createNode('td', nextId)] : [createNode('td', nextId)];
+  n.parent.children.splice(n.index, 0, ...cells);
+  return cells.length;
 }
 
 // canMove tells whether element id may be moved into parentId.
@@ -216,7 +227,7 @@ export function duplicate(root, id) {
     }
   });
   n.parent.children.splice(n.index + 1, 0, copy);
-  if (copy.type === 'field' && n.parent.type === 'tr') fitFieldInRow(n.parent, n.index + 1);
+  if (copy.type === 'field' && n.parent.type === 'tr') fitFieldInRow(n.parent, n.index + 1, cellCount(copy));
   return copy;
 }
 
@@ -304,12 +315,19 @@ export function createField(root, fieldType, nextId) {
 
 // ---------- tables ----------
 
-// tableCols counts the widest row; a field counts as two cells.
+// cellCount is how many table cells an element of a row takes: a field with a
+// label takes two (label, value), a field without a label only the value cell.
+export function cellCount(node) {
+  if (node.type !== 'field') return 1;
+  return node.props && String(node.props.label || '').trim() ? 2 : 1;
+}
+
+// tableCols counts the widest row.
 export function tableCols(table) {
   let max = 1;
   for (const tr of table.children || []) {
     let n = 0;
-    for (const c of tr.children || []) n += c.type === 'field' ? 2 : 1;
+    for (const c of tr.children || []) n += cellCount(c);
     max = Math.max(max, n);
   }
   return max;

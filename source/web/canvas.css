@@ -4,41 +4,41 @@ body {
   padding: 16px;
 }
 
-#sheet > .container-fluid {
+:where(#sheet) > .container-fluid {
   min-height: 120px;
   outline: 1px dashed #8a94a6;
   padding: 12px;
 }
 
-#sheet .row {
+:where(#sheet) .row {
   outline: 1px dashed #6b8cce;
   min-height: 48px;
   margin: 4px 0;
 }
 
-#sheet [class^="col"], #sheet [class*=" col"] {
+:where(#sheet) [class^="col"], :where(#sheet) [class*=" col"] {
   outline: 1px dashed #c08bd0;
   min-height: 40px;
   padding: 6px;
 }
 
-#sheet .card-header { min-height: 36px; }
-#sheet .card-body { min-height: 48px; }
-#sheet .card { margin: 4px 0; }
+:where(#sheet) .card-header { min-height: 36px; }
+:where(#sheet) .card-body { min-height: 48px; }
+:where(#sheet) .card { margin: 4px 0; }
 
-#sheet .lbl {
+:where(#sheet) .lbl {
   font-size: 12px;
   text-transform: uppercase;
   opacity: 0.7;
 }
 
-#sheet .ed-ph { color: #8a94a6; font-style: italic; }
-#sheet div > .var { min-height: 1.5em; border-bottom: 1px solid #d0d5dd; }
-#sheet table.table { margin-bottom: 4px; }
-#sheet table.table th, #sheet table.table td { min-width: 40px; height: 32px; outline: 1px dotted #c9ced8; }
-#sheet ul, #sheet ol { min-height: 28px; outline: 1px dashed #9fb7a0; padding-top: 4px; padding-bottom: 4px; }
-#sheet li { min-height: 22px; }
-#sheet .ed-img {
+:where(#sheet) .ed-ph { color: #8a94a6; font-style: italic; }
+:where(#sheet) div > .var { min-height: 1.5em; border-bottom: 1px solid #d0d5dd; }
+:where(#sheet) table.table { margin-bottom: 4px; }
+:where(#sheet) table.table th, :where(#sheet) table.table td { min-width: 40px; height: 32px; outline: 1px dotted #c9ced8; }
+:where(#sheet) ul, :where(#sheet) ol { min-height: 28px; outline: 1px dashed #9fb7a0; padding-top: 4px; padding-bottom: 4px; }
+:where(#sheet) li { min-height: 22px; }
+:where(#sheet) .ed-img {
   display: flex;
   align-items: center;
   justify-content: center;
@@ -103,3 +103,27 @@ span.ed-hover::before, span.ed-selected::before { content: none; }
   border: 1px dashed #c3c9d4;
   background-clip: content-box;
 }
+
+/* WA theme colors for the preview (the real values come from the WA theme). */
+:root {
+  --dark: #222222;
+  --light: #f5f5f5;
+}
+
+/* Dark canvas (default). Low specificity, so the sheet's own CSS always wins. */
+body.dark {
+  background: #1d2027;
+  color: #dfe3ea;
+}
+body.dark :where(.card) { background-color: #262a33; border-color: #3b404c; }
+body.dark :where(.card-header) { background-color: #2e333d; border-color: #3b404c; }
+body.dark :where(.table) { color: inherit; border-color: #3b404c; }
+body.dark :where(#sheet) .var { border-bottom-color: #4a505d; }
+body.dark :where(#sheet) .ed-ph { color: #7f8899; }
+body.dark .ed-img {
+  color: #9aa3b5;
+  border-color: #59606e;
+  background: repeating-linear-gradient(45deg, #262a33, #262a33 8px, #2c303a 8px, #2c303a 16px);
+}
+body.dark .ed-empty { border-color: #4a505d; color: #7f8899; }
+body.dark .ed-editing { background: #3a3420; }

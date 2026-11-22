@@ -275,3 +275,30 @@ test('rowFreeSpace', () => {
   assert.equal(t.rowFreeSpace(row({ col: 12, md: 4 }), 'col'), 0);
   assert.equal(t.rowFreeSpace(row({ md: 4 }), 'col'), 0, 'auto col fills the line');
 });
+
+test('new col is col-12', () => {
+  assert.deepEqual(t.createNode('col', t.idGen(sample())).props, { col: 12 });
+});
+
+test('field without label takes one cell', () => {
+  const r = sample();
+  const tb = t.createNode('table', t.idGen(r));
+  t.insert(r, 'n5', 0, tb);
+  const row = tb.children[0];
+  const f = t.createField(r, 'string', t.idGen(r));
+  f.props.label = '';
+  assert.equal(t.cellCount(f), 1);
+  t.insert(r, row.id, 0, f);
+  assert.deepEqual(row.children.map((c) => c.type), ['field', 'td'], 'takes the first empty cell (th)');
+  // set a label: takes the free td too
+  f.props.label = 'x';
+  t.fixRowCells(r, f, 1);
+  assert.deepEqual(row.children.map((c) => c.type), ['field']);
+  // clear the label: a td comes back
+  f.props.label = '';
+  t.fixRowCells(r, f, 2);
+  assert.deepEqual(row.children.map((c) => c.type), ['field', 'td']);
+  // moving it out leaves one cell
+  t.move(r, f.id, 'n5', 0);
+  assert.deepEqual(row.children.map((c) => c.type), ['td', 'td']);
+});

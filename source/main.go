@@ -34,7 +34,7 @@ func main() {
 	}
 	url := fmt.Sprintf("http://%s/?t=%s", ln.Addr(), token)
 
-	fmt.Println("WA Sheet Generator is running.")
+	fmt.Println("WA Sheet Generator " + appVersion + " is running.")
 	fmt.Println("If no browser opens, open this address:")
 	fmt.Println("  " + url)
 	fmt.Println("Close this window to quit.")

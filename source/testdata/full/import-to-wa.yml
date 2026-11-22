@@ -10,6 +10,10 @@ fields:
     description: "Level"
     min: 1
     max: 20
+  note:
+    label: "note"
+    input: string
+    description: "note"
   notes:
     label: "Notes"
     input: text

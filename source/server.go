@@ -29,7 +29,9 @@ func newServer(token string, web fs.FS) http.Handler {
 	api.HandleFunc("POST /api/project/save", s.projectSave)
 	api.HandleFunc("GET /api/fs/list", s.fsList)
 	api.HandleFunc("GET /api/rules", s.rules)
+	api.HandleFunc("GET /api/info", s.info)
 	api.HandleFunc("POST /api/check", s.check)
+	api.HandleFunc("POST /api/preview", s.preview)
 	api.HandleFunc("POST /api/export", s.export)
 
 	mux := http.NewServeMux()
@@ -80,6 +82,10 @@ func readJSON(w http.ResponseWriter, r *http.Request, v any) error {
 	return json.NewDecoder(http.MaxBytesReader(w, r.Body, maxBody)).Decode(v)
 }
 
+func (s *server) info(w http.ResponseWriter, r *http.Request) {
+	writeJSON(w, map[string]string{"version": appVersion})
+}
+
 // rules gives the UI the same naming rules the server checks, so they live in one place.
 func (s *server) rules(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, map[string]any{
@@ -87,6 +93,9 @@ func (s *server) rules(w http.ResponseWriter, r *http.Request) {
 		"sheetNamePattern":  sheetNameRe.String(),
 		"classNamePattern":  classNameRe.String(),
 		"fieldNamePattern":  fieldNameRe.String(),
+		"colorPattern":      colorRe.String(),
+		"fontNamePattern":   fontNameRe.String(),
+		"fontURLPattern":    fontURLRe.String(),
 		"forbiddenPrefixes": forbiddenClassPrefixes,
 	})
 }
@@ -141,6 +150,22 @@ func (s *server) check(w http.ResponseWriter, r *http.Request) {
 	}
 	_, problems := buildExport(req.Project)
 	writeJSON(w, map[string]any{"problems": nonNil(problems)})
+}
+
+// preview returns the sheet CSS and the format classes for the canvas, without validation.
+func (s *server) preview(w http.ResponseWriter, r *http.Request) {
+	var req struct {
+		Project *Project `json:"project"`
+	}
+	if err := readJSON(w, r, &req); err != nil || req.Project == nil || req.Project.Root == nil {
+		writeError(w, http.StatusBadRequest, errors.New("project is required"))
+		return
+	}
+	classes, _ := formatClasses(req.Project)
+	writeJSON(w, map[string]any{
+		"css":     genApprovedCSS(req.Project) + genStyleCSS(req.Project),
+		"classes": classes,
+	})
 }
 
 // export validates the project and writes the five WA files into folder.

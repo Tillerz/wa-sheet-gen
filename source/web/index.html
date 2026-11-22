@@ -8,20 +8,21 @@
 </head>
 <body>
   <header class="topbar">
-    <div class="brand">WA Sheet Generator</div>
     <nav class="actions">
       <button id="btnNew" type="button">New</button>
       <button id="btnOpen" type="button">Open…</button>
       <button id="btnSave" type="button" class="primary">Save</button>
       <button id="btnSaveAs" type="button">Save as…</button>
-      <span class="bar-sep"></span>
+    </nav>
+    <div class="doc-title" id="docTitle"></div>
+    <nav class="actions">
       <button id="btnUndo" type="button" title="Undo (Ctrl+Z)" disabled>↶ Undo</button>
       <button id="btnRedo" type="button" title="Redo (Ctrl+Y)" disabled>↷ Redo</button>
       <span class="bar-sep"></span>
       <button id="btnCheck" type="button" title="Check the sheet against the WA rules">Check</button>
       <button id="btnExport" type="button" class="primary" title="Save, then write the five WA files into the project folder">Export</button>
     </nav>
-    <div class="doc-title" id="docTitle"></div>
+    <div class="brand">WA Sheet Generator <span class="version" id="appVersion"></span></div>
   </header>
 
   <main class="workspace">
@@ -53,6 +54,15 @@
           <button type="button" data-bp="md">Medium</button>
           <button type="button" data-bp="lg" class="active">Large</button>
         </div>
+        <div class="segmented" id="quickFmt" title="Format the selected element">
+          <button type="button" data-prop="align" data-value="left" title="Align left">⇤</button>
+          <button type="button" data-prop="align" data-value="center" title="Center">↔</button>
+          <button type="button" data-prop="align" data-value="right" title="Align right">⇥</button>
+          <button type="button" data-prop="bold" title="Bold" class="b">B</button>
+          <button type="button" data-prop="italic" title="Italic" class="i">I</button>
+          <button type="button" data-prop="underline" title="Underline" class="u">U</button>
+        </div>
+        <button type="button" id="btnTheme" class="small" title="Canvas background (only in the editor, not exported)"></button>
       </div>
       <div class="canvas-scroll">
         <iframe id="canvas" src="canvas.html" title="Sheet canvas"></iframe>
@@ -66,6 +76,7 @@
       </label>
       <p class="error" id="sheetNameErr"></p>
       <p class="hint">Root class: <code id="rootClass"></code></p>
+      <div id="sheetExtras"></div>
 
       <h2>Selection</h2>
       <div id="selection"></div>
@@ -105,6 +116,11 @@
       </div>
     </div>
   </dialog>
+
+  <datalist id="themeColors">
+    <option value="var(--dark)"></option>
+    <option value="var(--light)"></option>
+  </datalist>
 
   <div id="ctxMenu" class="menu" hidden></div>
 

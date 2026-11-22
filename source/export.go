@@ -90,6 +90,7 @@ func genApprovedCSS(p *Project) string {
 func genStyleCSS(p *Project) string {
 	var b strings.Builder
 	b.WriteString(cssHeader)
+	b.WriteString(genFormatCSS(p))
 	if s := strings.TrimSpace(p.CustomCSS.Style); s != "" {
 		b.WriteString(s + "\n")
 	}
@@ -103,7 +104,11 @@ func genYAML(p *Project) string {
 	b.WriteString("fields:\n")
 	eachField(p.Root, func(n *Node) {
 		name := propString(n, "name")
-		label := propString(n, "label")
+		// WA lists fields by their YAML label, so an empty label falls back to the name.
+		label := strings.TrimSpace(propString(n, "label"))
+		if label == "" {
+			label = strings.ReplaceAll(name, "_", " ")
+		}
 		desc := propString(n, "description")
 		if desc == "" {
 			desc = label
@@ -159,9 +164,26 @@ func eachField(n *Node, fn func(*Node)) {
 // ---------- Twig ----------
 
 type twigGen struct {
-	b     strings.Builder
-	form  bool
-	sheet string
+	b       strings.Builder
+	form    bool
+	sheet   string
+	classes map[string]string // node id → format class (f-N)
+}
+
+// cls returns " f-N" for a formatted element, or "".
+func (g *twigGen) cls(n *Node) string {
+	if c := g.classes[n.ID]; c != "" {
+		return " " + c
+	}
+	return ""
+}
+
+// attr returns " class='f-N'" for a formatted element, or "".
+func (g *twigGen) attr(n *Node) string {
+	if c := g.classes[n.ID]; c != "" {
+		return " class='" + c + "'"
+	}
+	return ""
 }
 
 func (g *twigGen) line(depth int, s string) {
@@ -172,7 +194,8 @@ func (g *twigGen) line(depth int, s string) {
 
 // genTwig writes the view (form=false) or the edit form (form=true).
 func genTwig(p *Project, form bool) string {
-	g := &twigGen{form: form, sheet: p.SheetName}
+	classes, _ := formatClasses(p)
+	g := &twigGen{form: form, sheet: p.SheetName, classes: classes}
 	g.node(p.Root, nil, 0)
 	return g.b.String()
 }
@@ -200,10 +223,14 @@ func onlyText(n *Node) bool {
 	return true
 }
 
-func joinedText(n *Node) string {
+func (g *twigGen) joinedText(n *Node) string {
 	var parts []string
 	for _, c := range n.Children {
-		parts = append(parts, esc(propString(c, "text")))
+		t := esc(propString(c, "text"))
+		if g.classes[c.ID] != "" {
+			t = "<span" + g.attr(c) + ">" + t + "</span>"
+		}
+		parts = append(parts, t)
 	}
 	return strings.Join(parts, " ")
 }
@@ -211,7 +238,7 @@ func joinedText(n *Node) string {
 // block writes <open> children </close>, or one line if only text is inside.
 func (g *twigGen) block(n *Node, depth int, open, close string) {
 	if onlyText(n) {
-		g.line(depth, open+joinedText(n)+close)
+		g.line(depth, open+g.joinedText(n)+close)
 		return
 	}
 	g.line(depth, open)
@@ -230,32 +257,37 @@ func (g *twigGen) node(n *Node, parent *Node, depth int) {
 		}
 		g.line(depth, "</div>")
 	case "row":
-		g.block(n, depth, "<div class='row'>", "</div>")
+		g.block(n, depth, "<div class='row"+g.cls(n)+"'>", "</div>")
 	case "col":
-		g.block(n, depth, "<div class='"+colClass(n)+"'>", "</div>")
+		g.block(n, depth, "<div class='"+colClass(n)+g.cls(n)+"'>", "</div>")
 	case "card":
 		cls := "card"
 		if c := propString(n, "cls"); c != "" {
 			cls += " " + c
 		}
-		g.block(n, depth, "<div class='"+cls+"'>", "</div>")
+		g.block(n, depth, "<div class='"+cls+g.cls(n)+"'>", "</div>")
 	case "card-header":
-		g.block(n, depth, "<div class='card-header'>", "</div>")
+		g.block(n, depth, "<div class='card-header"+g.cls(n)+"'>", "</div>")
 	case "card-body":
-		g.block(n, depth, "<div class='card-body'>", "</div>")
+		g.block(n, depth, "<div class='card-body"+g.cls(n)+"'>", "</div>")
 	case "ul", "ol", "li", "tr", "th", "td":
-		g.block(n, depth, "<"+n.Type+">", "</"+n.Type+">")
+		g.block(n, depth, "<"+n.Type+g.attr(n)+">", "</"+n.Type+">")
 	case "table":
-		g.block(n, depth, "<table class='table'>", "</table>")
+		g.block(n, depth, "<table class='table"+g.cls(n)+"'>", "</table>")
 	case "text":
-		// Inside a container a text gets its own element; in a header, item or cell it is plain text.
-		if parent != nil && (parent.Type == "col" || parent.Type == "card-body") {
-			g.line(depth, "<div class='txt'>"+esc(propString(n, "text"))+"</div>")
-		} else {
-			g.line(depth, esc(propString(n, "text")))
+		// Inside a container a text gets its own element; in a header, item or cell it is
+		// plain text, or a span when it is formatted.
+		text := esc(propString(n, "text"))
+		switch {
+		case parent != nil && (parent.Type == "col" || parent.Type == "card-body"):
+			g.line(depth, "<div class='txt"+g.cls(n)+"'>"+text+"</div>")
+		case g.classes[n.ID] != "":
+			g.line(depth, "<span"+g.attr(n)+">"+text+"</span>")
+		default:
+			g.line(depth, text)
 		}
 	case "image":
-		img := "<img src='/i/" + propString(n, "imageId") + "/render' alt=''"
+		img := "<img src='/i/" + propString(n, "imageId") + "/render' alt=''" + g.attr(n)
 		if w, ok := propNumber(n, "width"); ok && w > 0 {
 			img += " width='" + num(w) + "'"
 		}
@@ -268,17 +300,22 @@ func (g *twigGen) node(n *Node, parent *Node, depth int) {
 func (g *twigGen) field(n *Node, inRow bool, depth int) {
 	name := propString(n, "name")
 	cls := fieldClass(name)
-	label := esc(propString(n, "label"))
+	label := esc(strings.TrimSpace(propString(n, "label")))
 	lblTag, valTag := "div", "div"
 	if inRow {
 		lblTag, valTag = "th", "td"
 	}
+	// Without a label only the value is written (in a table row: only the value cell).
 	if g.form {
-		g.line(depth, fmt.Sprintf("<%s class='ilbl ilbl-%s'><label for='%s'>%s</label></%s>", lblTag, cls, name, label, lblTag))
+		if label != "" {
+			g.line(depth, fmt.Sprintf("<%s class='ilbl ilbl-%s'><label for='%s'>%s</label></%s>", lblTag, cls, name, label, lblTag))
+		}
 		g.line(depth, fmt.Sprintf("<%s class='ivar ivar-%s'>%s</%s>", valTag, cls, formInput(n), valTag))
 		return
 	}
-	g.line(depth, fmt.Sprintf("<%s class='lbl lbl-%s'>%s</%s>", lblTag, cls, label, lblTag))
+	if label != "" {
+		g.line(depth, fmt.Sprintf("<%s class='lbl lbl-%s'>%s</%s>", lblTag, cls, label, lblTag))
+	}
 	g.line(depth, fmt.Sprintf("<%s class='var var-%s'>%s</%s>", valTag, cls, sheetValue(n), valTag))
 }
 
@@ -306,6 +343,10 @@ func formInput(n *Node) string {
 	if propBool(n, "required") {
 		req = " required='required'"
 	}
+	ph := ""
+	if s := propString(n, "placeholder"); s != "" {
+		ph = " placeholder='" + esc(s) + "'"
+	}
 	switch propString(n, "fieldType") {
 	case "number":
 		attrs := ""
@@ -315,9 +356,9 @@ func formInput(n *Node) string {
 		if m, ok := propNumber(n, "max"); ok {
 			attrs += " max='" + num(m) + "'"
 		}
-		return fmt.Sprintf("<input %s %s type='number'%s />", value, common, attrs)
+		return fmt.Sprintf("<input %s %s type='number'%s%s />", value, common, attrs, ph)
 	case "text":
-		return fmt.Sprintf("<textarea %s rows='%s'>{{%s|default}}</textarea>", common, num(textRows(n)), v)
+		return fmt.Sprintf("<textarea %s rows='%s'%s>{{%s|default}}</textarea>", common, num(textRows(n)), ph, v)
 	case "checkbox":
 		return fmt.Sprintf("<input value='0' name='%s' type='hidden' /><input value='1' {%% if %s|default > 0 %%}checked='checked'{%% endif %%} class='ivar ivar-%s' id='%s' name='%s' type='checkbox' />",
 			name, v, cls, name, name)
@@ -331,15 +372,18 @@ func formInput(n *Node) string {
 		return b.String()
 	case "suggest":
 		var b strings.Builder
-		fmt.Fprintf(&b, "<input %s list='list-%s' %s type='text' /><datalist id='list-%s'>", value, cls, common, cls)
+		fmt.Fprintf(&b, "<input %s list='list-%s' %s type='text'%s /><datalist id='list-%s'>", value, cls, common, ph, cls)
 		for _, o := range propStrings(n, "options") {
 			fmt.Fprintf(&b, "<option value='%s'></option>", esc(o))
 		}
 		b.WriteString("</datalist>")
 		return b.String()
 	case "image":
-		return fmt.Sprintf("<input %s %s type='number' placeholder='WA Image ID' />", value, common)
+		if ph == "" {
+			ph = " placeholder='WA Image ID'"
+		}
+		return fmt.Sprintf("<input %s %s type='number'%s />", value, common, ph)
 	default:
-		return fmt.Sprintf("<input %s %s type='text'%s />", value, common, req)
+		return fmt.Sprintf("<input %s %s type='text'%s%s />", value, common, req, ph)
 	}
 }

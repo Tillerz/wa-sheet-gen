@@ -85,12 +85,23 @@ func validateProject(p *Project) []Problem {
 		}
 	}
 
+	fonts := map[string]bool{}
+	for _, f := range p.Fonts {
+		fonts[f.Name] = true
+	}
 	names := map[string]string{} // field name → node id
 	hasName := false
 	var walk func(n *Node, parent *Node)
 	walk = func(n *Node, parent *Node) {
 		if parent != nil && !canContain(parent.Type, n.Type) {
 			ps = append(ps, errorf(n.ID, "a %s cannot be inside a %s", n.Type, parent.Type))
+		}
+		if n.Type == "field" {
+			for _, k := range fieldFmtKeys {
+				ps = append(ps, validateFmt(n, k, fonts)...)
+			}
+		} else {
+			ps = append(ps, validateFmt(n, "fmt", fonts)...)
 		}
 		switch n.Type {
 		case "row":
@@ -152,9 +163,6 @@ func validateField(n *Node, names map[string]string) []Problem {
 		ps = append(ps, errorf(n.ID, "two fields are named %q", name))
 	}
 	names[name] = n.ID
-	if strings.TrimSpace(propString(n, "label")) == "" {
-		ps = append(ps, errorf(n.ID, "field %q has no label", name))
-	}
 	ft := propString(n, "fieldType")
 	if !fieldTypes[ft] {
 		ps = append(ps, errorf(n.ID, "field %q has an unknown type %q", name, ft))

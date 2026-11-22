@@ -99,6 +99,8 @@ All types found in the three examples:
 Per type, the field dialog asks for:
 
 - all types: label, field name, description (YAML `description`; empty means same as label)
+- String, Number, Text area, Suggest, Image ID: placeholder (shown in the empty input of the form)
+- The label may be empty. Then only the value is written; in a table row the field takes only the value cell (`td`), so the labels can sit in a header row. In the YAML an empty label falls back to the field name.
 - Number: min, max (both optional)
 - Text area: rows
 - Dropdown / Suggest: list of values, one per line
@@ -162,6 +164,7 @@ Classes: sheet uses `lbl` / `var`, form uses `ilbl` / `ivar`, plus a per-field c
 
 ### 5.2 Cols
 
+- A new col is always `col-12` (full width on phones). Dropped into a row with free space, it also gets the free width for the current screen size (in the "All sizes" view: `col-x` itself).
 - Each col has a width per breakpoint: `col-x` (all sizes), `col-md-x`, `col-lg-x`. Values 1–12. Each breakpoint can also be unset.
 - A breakpoint switch in the toolbar (all / md / lg) chooses which width the canvas shows and which width the resize handle changes.
 - Dragging the right edge of a col changes its width in steps of 1, clamped to 1–12.
@@ -193,12 +196,14 @@ Classes: sheet uses `lbl` / `var`, form uses `ilbl` / `ivar`, plus a per-field c
 - **Empty space**: when the cols of a row (at the current screen size) fill less than 12 columns, the free part shows as a striped "empty" box. An empty row shows "drop a col here".
 - **Undo / Redo**: buttons in the top bar, and Ctrl+Z / Ctrl+Y (Ctrl+Shift+Z). Each canvas change is one step; quick typing in the panel is grouped into one step. Undo back to the saved state clears the "unsaved" mark. Up to 200 steps.
 - **View switch**: Layout (editing) / Sheet preview / Form preview. Previews render with sample data.
+- **Canvas**: shows the real sheet CSS (made by the same Go code as the export, via `/api/preview`). Dark canvas by default, switchable to light (editor only, not exported). In the canvas, `--dark` is #222222 and `--light` is #f5f5f5; on WA the theme sets them.
+- **Version**: shown next to the app name at the top right; set in `source/version.go`.
 - Look: modern, clean, light and dark mode, fast. No external JavaScript libraries.
 - Add mouse-over text to fields
 
 ## 7. Formatting
 
-Toolbar buttons and the right-click menu, for the selected element:
+The "Format" section of the properties panel, quick buttons above the canvas (align, bold, italic, underline) and "Format…" in the right-click menu, for the selected element:
 
 - align left / center / right
 - bold, italic, underline
@@ -219,7 +224,7 @@ Border, border radius and background color are offered only where they make sens
 | field input (form): `input`, `textarea`, `select` | yes, set separately from the sheet look |
 | row, col, ul, ol, li, static text | no |
 
-A field has two looks: the value in the sheet (`.var-hp-max`) and the input in the form (`.ivar-hp-max`). The properties panel has a Sheet / Form switch for this.
+A field has three looks, switched with Label / Value / Input in the panel: the label in sheet and form (`.lbl-hp-max`, `.ilbl-hp-max`), the value in the sheet (`.var-hp-max`) and the input in the form (`:is(input, textarea, select).ivar-hp-max`). The quick buttons act on the active look.
 
 A plain background color goes into `style.css`. A gradient would go into `approved.css` (3.1); gradients are not in the toolbar in version 1, use custom CSS.
 
@@ -229,8 +234,10 @@ Rules:
 - Formatting applies to a whole element, not to single words inside a text.
 - The CSS rule uses the element's own class:
   - fields: their field classes (`.block-nimble .var-hp-max { font-weight: bold }`)
-  - cards: their card class (`.block-nimble .skills .card-header { … }`)
-  - other elements get a generated class (`f-1`, `f-2`, …) only when they have formatting
+  - the sheet root: the root class itself (`.block-nimble { … }`), e.g. the default font
+  - every other formatted element gets a generated class (`f-1`, `f-2`, …). Elements with the same formatting share one class. (A card's own extra class is left for custom CSS, because two cards with the same class may look different.)
+- A formatted text inside a header, list item or cell is wrapped in `<span class='f-N'>`.
+- Colors: `#rgb`, `#rrggbb` or `var(--name)`; sizes in px. A value ending in `)` is written with a space before `;`.
 - **Fonts**: a sheet font list. Each entry has a name and a direct font file URL and becomes one `@font-face` block in `approved.css`. One font can be the sheet default (set on the root class).
 - **Custom CSS**: the project has two free text boxes, one for extra `style.css` and one for extra `approved.css`. Their content is added at the end of the exported files and is checked by the validator. Edit custom CSS here, not in the exported files: the next export overwrites the exported files.
 

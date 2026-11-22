@@ -1,45 +1,325 @@
 {
   "version": 1,
   "sheetName": "test-sheet",
-  "fonts": [{"name": "Grenze", "url": "https://fonts.gstatic.com/s/grenze/v1/O4ZTFGb7hR12BxqH-GIm.woff2"}],
-  "customCss": {"style": ".block-test-sheet .card-header { color: var(--dark) ; }", "approved": ".block-test-sheet .card-header { background-image: linear-gradient( 45deg, #ff8000, #a000a0 ) }"},
-  "root": {"id": "n1", "type": "container", "children": [
-    {"id": "n2", "type": "row", "children": [
-      {"id": "n3", "type": "col", "props": {"col": 12, "md": 6}, "children": [
-        {"id": "n4", "type": "card", "props": {"cls": "personal"}, "children": [
-          {"id": "n5", "type": "card-header", "children": [{"id": "n6", "type": "text", "props": {"text": "Personal"}}]},
-          {"id": "n7", "type": "card-body", "children": [
-            {"id": "n8", "type": "table", "children": [
-              {"id": "n9", "type": "tr", "children": [
-                {"id": "n10", "type": "field", "props": {"fieldType": "string", "name": "name", "label": "name", "required": true}}
-              ]},
-              {"id": "n11", "type": "tr", "children": [
-                {"id": "n12", "type": "field", "props": {"fieldType": "number", "name": "level", "label": "Level", "min": 1, "max": 20}}
-              ]},
-              {"id": "n13", "type": "tr", "children": [
-                {"id": "n14", "type": "th", "children": [{"id": "n15", "type": "text", "props": {"text": "plain"}}]},
-                {"id": "n16", "type": "td"}
-              ]}
-            ]}
-          ]}
-        ]}
-      ]},
-      {"id": "n17", "type": "col", "props": {"lg": 4}, "children": [
-        {"id": "n18", "type": "image", "props": {"imageId": "7978043", "width": 350}},
-        {"id": "n19", "type": "text", "props": {"text": "Tom's <b>{{ variables.x }}</b> & \"more\""}},
-        {"id": "n20", "type": "field", "props": {"fieldType": "text", "name": "notes", "label": "Notes", "description": "Free notes", "rows": 5}},
-        {"id": "n21", "type": "field", "props": {"fieldType": "checkbox", "name": "wounds_001", "label": "wound"}},
-        {"id": "n22", "type": "field", "props": {"fieldType": "select", "name": "weapon_range", "label": "range", "options": ["Melee", "Very Close", "It's far"]}},
-        {"id": "n23", "type": "field", "props": {"fieldType": "suggest", "name": "ancestry", "label": "ancestry", "options": ["Elf", "Dwarf"]}},
-        {"id": "n24", "type": "field", "props": {"fieldType": "image", "name": "portrait", "label": "portrait"}}
-      ]},
-      {"id": "n25", "type": "col", "children": [
-        {"id": "n26", "type": "ul", "children": [
-          {"id": "n27", "type": "li", "children": [{"id": "n28", "type": "text", "props": {"text": "Item"}}]},
-          {"id": "n29", "type": "li", "children": [{"id": "n30", "type": "field", "props": {"fieldType": "string", "name": "gear", "label": "gear"}}]}
-        ]},
-        {"id": "n31", "type": "ol", "children": [{"id": "n32", "type": "li", "children": [{"id": "n33", "type": "text", "props": {"text": "First"}}]}]}
-      ]}
-    ]}
-  ]}
+  "fonts": [
+    {
+      "name": "Grenze",
+      "url": "https://fonts.gstatic.com/s/grenze/v1/O4ZTFGb7hR12BxqH-GIm.woff2"
+    }
+  ],
+  "customCss": {
+    "style": ".block-test-sheet .card-header { color: var(--dark) ; }",
+    "approved": ".block-test-sheet .card-header { background-image: linear-gradient( 45deg, #ff8000, #a000a0 ) }"
+  },
+  "root": {
+    "id": "n1",
+    "type": "container",
+    "children": [
+      {
+        "id": "n2",
+        "type": "row",
+        "children": [
+          {
+            "id": "n3",
+            "type": "col",
+            "props": {
+              "col": 12,
+              "md": 6
+            },
+            "children": [
+              {
+                "id": "n4",
+                "type": "card",
+                "props": {
+                  "cls": "personal",
+                  "fmt": {
+                    "borderWidth": 2,
+                    "borderColor": "#a000a0",
+                    "radius": 6
+                  }
+                },
+                "children": [
+                  {
+                    "id": "n5",
+                    "type": "card-header",
+                    "children": [
+                      {
+                        "id": "n6",
+                        "type": "text",
+                        "props": {
+                          "text": "Personal"
+                        }
+                      }
+                    ],
+                    "props": {
+                      "fmt": {
+                        "align": "center",
+                        "bold": true,
+                        "bg": "var(--dark)",
+                        "color": "var(--light)"
+                      }
+                    }
+                  },
+                  {
+                    "id": "n7",
+                    "type": "card-body",
+                    "children": [
+                      {
+                        "id": "n8",
+                        "type": "table",
+                        "children": [
+                          {
+                            "id": "n9",
+                            "type": "tr",
+                            "children": [
+                              {
+                                "id": "n10",
+                                "type": "field",
+                                "props": {
+                                  "fieldType": "string",
+                                  "name": "name",
+                                  "label": "name",
+                                  "required": true
+                                }
+                              }
+                            ]
+                          },
+                          {
+                            "id": "n11",
+                            "type": "tr",
+                            "children": [
+                              {
+                                "id": "n12",
+                                "type": "field",
+                                "props": {
+                                  "fieldType": "number",
+                                  "name": "level",
+                                  "label": "Level",
+                                  "min": 1,
+                                  "max": 20,
+                                  "fmtLabel": {
+                                    "size": 14,
+                                    "underline": true
+                                  },
+                                  "fmt": {
+                                    "align": "right",
+                                    "size": 24
+                                  },
+                                  "fmtInput": {
+                                    "bg": "#ffffff",
+                                    "borderStyle": "dashed"
+                                  },
+                                  "placeholder": "1-20"
+                                }
+                              }
+                            ]
+                          },
+                          {
+                            "id": "n13",
+                            "type": "tr",
+                            "children": [
+                              {
+                                "id": "n14",
+                                "type": "th",
+                                "children": [
+                                  {
+                                    "id": "n15",
+                                    "type": "text",
+                                    "props": {
+                                      "text": "plain",
+                                      "fmt": {
+                                        "italic": true
+                                      }
+                                    }
+                                  }
+                                ]
+                              },
+                              {
+                                "id": "n16",
+                                "type": "td"
+                              },
+                              {
+                                "id": "n40",
+                                "type": "field",
+                                "props": {
+                                  "fieldType": "string",
+                                  "name": "note",
+                                  "label": ""
+                                }
+                              }
+                            ]
+                          }
+                        ]
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "id": "n17",
+            "type": "col",
+            "props": {
+              "lg": 4
+            },
+            "children": [
+              {
+                "id": "n18",
+                "type": "image",
+                "props": {
+                  "imageId": "7978043",
+                  "width": 350,
+                  "fmt": {
+                    "radius": 4
+                  }
+                }
+              },
+              {
+                "id": "n19",
+                "type": "text",
+                "props": {
+                  "text": "Tom's <b>{{ variables.x }}</b> & \"more\""
+                }
+              },
+              {
+                "id": "n20",
+                "type": "field",
+                "props": {
+                  "fieldType": "text",
+                  "name": "notes",
+                  "label": "Notes",
+                  "description": "Free notes",
+                  "rows": 5,
+                  "placeholder": "Write it's notes"
+                }
+              },
+              {
+                "id": "n21",
+                "type": "field",
+                "props": {
+                  "fieldType": "checkbox",
+                  "name": "wounds_001",
+                  "label": "wound"
+                }
+              },
+              {
+                "id": "n22",
+                "type": "field",
+                "props": {
+                  "fieldType": "select",
+                  "name": "weapon_range",
+                  "label": "range",
+                  "options": [
+                    "Melee",
+                    "Very Close",
+                    "It's far"
+                  ]
+                }
+              },
+              {
+                "id": "n23",
+                "type": "field",
+                "props": {
+                  "fieldType": "suggest",
+                  "name": "ancestry",
+                  "label": "ancestry",
+                  "options": [
+                    "Elf",
+                    "Dwarf"
+                  ]
+                }
+              },
+              {
+                "id": "n24",
+                "type": "field",
+                "props": {
+                  "fieldType": "image",
+                  "name": "portrait",
+                  "label": "portrait"
+                }
+              }
+            ]
+          },
+          {
+            "id": "n25",
+            "type": "col",
+            "children": [
+              {
+                "id": "n26",
+                "type": "ul",
+                "children": [
+                  {
+                    "id": "n27",
+                    "type": "li",
+                    "children": [
+                      {
+                        "id": "n28",
+                        "type": "text",
+                        "props": {
+                          "text": "Item",
+                          "fmt": {
+                            "italic": true
+                          }
+                        }
+                      }
+                    ],
+                    "props": {
+                      "fmt": {
+                        "align": "center",
+                        "bold": true,
+                        "bg": "var(--dark)",
+                        "color": "var(--light)"
+                      }
+                    }
+                  },
+                  {
+                    "id": "n29",
+                    "type": "li",
+                    "children": [
+                      {
+                        "id": "n30",
+                        "type": "field",
+                        "props": {
+                          "fieldType": "string",
+                          "name": "gear",
+                          "label": "gear"
+                        }
+                      }
+                    ]
+                  }
+                ]
+              },
+              {
+                "id": "n31",
+                "type": "ol",
+                "children": [
+                  {
+                    "id": "n32",
+                    "type": "li",
+                    "children": [
+                      {
+                        "id": "n33",
+                        "type": "text",
+                        "props": {
+                          "text": "First"
+                        }
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    ],
+    "props": {
+      "fmt": {
+        "font": "Grenze",
+        "color": "var(--dark)",
+        "bg": "#202020"
+      }
+    }
+  }
 }

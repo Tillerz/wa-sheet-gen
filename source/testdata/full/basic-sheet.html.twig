@@ -1,8 +1,8 @@
 <div class='container-fluid block-test-sheet'>
   <div class='row'>
     <div class='col-12 col-md-6'>
-      <div class='card personal'>
-        <div class='card-header'>Personal</div>
+      <div class='card personal f-1'>
+        <div class='card-header f-2'>Personal</div>
         <div class='card-body'>
           <table class='table'>
             <tr>
@@ -14,8 +14,9 @@
               <td class='var var-level'>{{variables.level|default}}</td>
             </tr>
             <tr>
-              <th>plain</th>
+              <th><span class='f-3'>plain</span></th>
               <td></td>
+              <td class='var var-note'>{{variables.note|default}}</td>
             </tr>
           </table>
         </div>
@@ -37,7 +38,7 @@
     </div>
     <div class='col'>
       <ul>
-        <li>Item</li>
+        <li class='f-4'><span class='f-3'>Item</span></li>
         <li>
           <div class='lbl lbl-gear'>gear</div>
           <div class='var var-gear'>{{variables.gear|default}}</div>

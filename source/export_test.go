@@ -119,6 +119,15 @@ func TestValidationErrors(t *testing.T) {
 		"css sh class":        {func(p *Project) { p.CustomCSS.Style = ".shadow { color: red }" }, "must not start with sh or py"},
 		"css banned word":     {func(p *Project) { p.CustomCSS.Approved = ".a { behavior: x }" }, "filtered word"},
 		"bad font url":        {func(p *Project) { p.Fonts = []Font{{Name: "X", URL: "http://a b"}} }, "URL must start"},
+		"bad color": {func(p *Project) {
+			p.Root.Children[0].Children[0].Children[0].Props["fmt"] = map[string]any{"color": "rgb(10%, 0, 0)"}
+		}, "use #rgb"},
+		"bad align": {func(p *Project) {
+			p.Root.Props = map[string]any{"fmt": map[string]any{"align": "middle"}}
+		}, "unknown alignment"},
+		"bad size": {func(p *Project) {
+			p.Root.Props = map[string]any{"fmt": map[string]any{"size": 500.0}}
+		}, "size must be"},
 	}
 	for name, c := range cases {
 		p := newProject()
@@ -181,5 +190,36 @@ func TestExportAPI(t *testing.T) {
 	rec = do(t, h, "POST", "/api/check", testToken, map[string]any{"project": bad})
 	if rec.Code != 200 || !strings.Contains(rec.Body.String(), "sheet name") {
 		t.Errorf("check: %d %s", rec.Code, rec.Body)
+	}
+}
+
+func TestFontNotInListIsWarning(t *testing.T) {
+	p := newProject()
+	p.Root.Props = map[string]any{"fmt": map[string]any{"font": "Grenze"}}
+	files, ps := buildExport(p)
+	if files == nil || !strings.Contains(problemsText(ps), "warning: font \"Grenze\" is not in the font list") {
+		t.Errorf("want a warning, got: %s", problemsText(ps))
+	}
+}
+
+func TestPreviewAPI(t *testing.T) {
+	h := testHandler(t)
+	p := loadTestProject(t, "full.project.json")
+	rec := do(t, h, "POST", "/api/preview", testToken, map[string]any{"project": p})
+	if rec.Code != 200 {
+		t.Fatalf("preview: %d %s", rec.Code, rec.Body)
+	}
+	var res struct {
+		CSS     string            `json:"css"`
+		Classes map[string]string `json:"classes"`
+	}
+	if err := json.Unmarshal(rec.Body.Bytes(), &res); err != nil {
+		t.Fatal(err)
+	}
+	if res.Classes["n4"] != "f-1" || res.Classes["n15"] != res.Classes["n28"] {
+		t.Errorf("classes: %+v", res.Classes)
+	}
+	if !strings.Contains(res.CSS, "@font-face") || !strings.Contains(res.CSS, ".block-test-sheet .f-1") {
+		t.Errorf("css: %s", res.CSS)
 	}
 }

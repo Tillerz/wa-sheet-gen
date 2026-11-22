@@ -1,6 +1,7 @@
 // WA Sheet Generator — editor UI. Plain JavaScript, no libraries.
 import { createEditor } from './editor.js';
 import * as T from './tree.js';
+import { buildFormat, canFormat, fmtKeyFor } from './formatpanel.js';
 
 const $ = (id) => document.getElementById(id);
 
@@ -18,7 +19,8 @@ const state = {
   project: null,
   folder: '',
   dirty: false,
-  rules: { bannedWords: [], sheetNameRe: /^$/, classNameRe: /^$/, fieldNameRe: /^$/, forbiddenPrefixes: [] },
+  rules: { bannedWords: [], sheetNameRe: /^$/, classNameRe: /^$/, fieldNameRe: /^$/, forbiddenPrefixes: [], colorRe: /^$/, fontNameRe: /^$/, fontURLRe: /^$/ },
+  formatClasses: {}, // node id → f-N, from /api/preview
 };
 
 async function api(method, path, body) {
@@ -110,6 +112,7 @@ function noteChange(immediate) {
     updateUndoButtons();
   }
   updateDirty();
+  refreshPreview();
 }
 
 function restore(json) {
@@ -117,10 +120,12 @@ function restore(json) {
   state.project = JSON.parse(json);
   $('sheetName').value = state.project.sheetName;
   checkSheetName();
+  renderSheetExtras();
   editor.render();
   editor.select(sel);
   updateDirty();
   updateUndoButtons();
+  refreshPreview();
 }
 
 function undo() {
@@ -168,8 +173,10 @@ function setProject(project, folder) {
   $('sheetName').value = project.sheetName;
   checkSheetName();
   historyReset();
+  renderSheetExtras();
   editor.render();
   editor.select(null);
+  refreshPreview();
 }
 
 function sheetNameError(name) {
@@ -202,6 +209,117 @@ const editor = createEditor({
   onSelect: renderSelection,
   openMenu,
   setFieldLabel,
+  getFormatClass: (id) => state.formatClasses[id] || '',
+  openFormat: (node) => {
+    editor.select(node.id);
+    const sec = $('fmtSection');
+    if (sec) sec.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  },
+});
+
+// ---------- canvas preview: sheet CSS and canvas theme ----------
+
+// The canvas shows the real sheet CSS, made by the same Go code as the export.
+let previewTimer;
+let previewCss = '';
+
+function refreshPreview() {
+  clearTimeout(previewTimer);
+  previewTimer = setTimeout(runPreview, 120);
+}
+
+async function runPreview() {
+  if (!state.project) return;
+  if (editor.editing) {
+    refreshPreview();
+    return;
+  }
+  try {
+    const res = await api('POST', '/api/preview', { project: state.project });
+    const classes = res.classes || {};
+    const classesChanged = JSON.stringify(classes) !== JSON.stringify(state.formatClasses);
+    state.formatClasses = classes;
+    previewCss = res.css || '';
+    applyCanvasCss();
+    if (classesChanged && !editor.editing) editor.render();
+  } catch {
+    // The preview is only cosmetic; Check and Export report real problems.
+  }
+}
+
+function canvasDocument() {
+  const doc = $('canvas').contentDocument;
+  return doc && doc.getElementById('sheet') ? doc : null;
+}
+
+function applyCanvasCss() {
+  const doc = canvasDocument();
+  if (!doc) return;
+  let st = doc.getElementById('sheet-css');
+  if (!st) {
+    st = doc.createElement('style');
+    st.id = 'sheet-css';
+    doc.head.append(st);
+  }
+  st.textContent = previewCss;
+}
+
+const ui = {
+  look: 'fmt', // active field look in the format panel
+  canvasTheme: localStorage.getItem('canvasTheme') || 'dark',
+};
+
+function applyCanvasTheme() {
+  const doc = canvasDocument();
+  if (doc) doc.body.classList.toggle('dark', ui.canvasTheme === 'dark');
+  $('btnTheme').textContent = ui.canvasTheme === 'dark' ? '☾ Dark' : '☀ Light';
+  $('canvas').classList.toggle('dark', ui.canvasTheme === 'dark');
+}
+
+$('btnTheme').onclick = () => {
+  ui.canvasTheme = ui.canvasTheme === 'dark' ? 'light' : 'dark';
+  localStorage.setItem('canvasTheme', ui.canvasTheme);
+  applyCanvasTheme();
+};
+
+$('canvas').addEventListener('load', () => {
+  applyCanvasTheme();
+  applyCanvasCss();
+});
+applyCanvasTheme();
+
+// ---------- formatting ----------
+
+// setFmt stores one format value of a node; '' or false removes it.
+function setFmt(node, key, prop, value) {
+  const p = (node.props ||= {});
+  const m = (p[key] ||= {});
+  if (value === '' || value === false || value === null || value === undefined) delete m[prop];
+  else m[prop] = value;
+  if (!Object.keys(m).length) delete p[key];
+  changed();
+}
+
+function selectedNode() {
+  const id = editor.selectedId;
+  return id && state.project ? (T.find(state.project.root, id) || {}).node : null;
+}
+
+// Quick buttons above the canvas: act on the selected element (for fields: the active look).
+document.querySelectorAll('#quickFmt button').forEach((b) => {
+  b.addEventListener('click', () => {
+    const node = selectedNode();
+    if (!node || !canFormat(node)) {
+      toast('Select an element first.');
+      return;
+    }
+    const key = fmtKeyFor(node, ui.look);
+    const m = (node.props && node.props[key]) || {};
+    const { prop, value } = b.dataset;
+    if (value) setFmt(node, key, prop, m[prop] === value ? '' : value);
+    else setFmt(node, key, prop, !m[prop]);
+    renderSelection(node);
+  });
 });
 
 // Palette: drag new elements into the canvas.
@@ -221,6 +339,72 @@ document.querySelectorAll('#bpSwitch button').forEach((b) => {
     editor.setBreakpoint(b.dataset.bp);
   });
 });
+
+// ---------- sheet settings: fonts and custom CSS ----------
+
+function fontError(f) {
+  if (!state.rules.fontNameRe.test(f.name)) return 'Name: letters, digits, spaces and - only.';
+  if (!state.rules.fontURLRe.test(f.url)) return 'URL: must start with https:// and have no spaces, quotes or brackets.';
+  return '';
+}
+
+// renderSheetExtras builds the font list and the custom CSS boxes. It is rebuilt only
+// when the project changes as a whole (open, new, undo), so typing keeps the focus.
+function renderSheetExtras() {
+  const p = state.project;
+  p.fonts ||= [];
+  p.customCss ||= { style: '', approved: '' };
+
+  const fontRows = p.fonts.map((f, i) => {
+    const err = h('p', { class: 'error', textContent: f.name || f.url ? fontError(f) : '' });
+    const check = () => { err.textContent = fontError(f); };
+    const name = h('input', {
+      type: 'text', value: f.name, placeholder: 'Font name, e.g. Grenze',
+      oninput: () => { f.name = name.value.trim(); check(); noteChange(false); },
+      onchange: () => renderSheetExtras(),
+    });
+    const url = h('input', {
+      type: 'text', value: f.url, placeholder: 'https://…/font.woff2', spellcheck: false,
+      oninput: () => { f.url = url.value.trim(); check(); noteChange(false); },
+    });
+    const del = h('button', {
+      type: 'button', class: 'danger', textContent: 'Remove',
+      onclick: () => { p.fonts.splice(i, 1); noteChange(true); renderSheetExtras(); },
+    });
+    return h('div', { class: 'font-row' }, name, url, h('div', { class: 'sel-actions' }, del), err);
+  });
+  const addFont = h('button', {
+    type: 'button', textContent: 'Add font',
+    onclick: () => { p.fonts.push({ name: '', url: '' }); noteChange(true); renderSheetExtras(); },
+  });
+
+  const rootFmt = (p.root.props && p.root.props.fmt) || {};
+  const names = p.fonts.map((f) => f.name).filter(Boolean);
+  const defSel = h('select', {
+    onchange: () => setFmt(p.root, 'fmt', 'font', defSel.value),
+  }, h('option', { value: '', textContent: '(WA default)' }), ...names.map((n) => h('option', { value: n, textContent: n })));
+  defSel.value = names.includes(rootFmt.font) ? rootFmt.font : '';
+
+  const cssBox = (key, label, hint) => {
+    const area = h('textarea', {
+      rows: 6, value: p.customCss[key] || '', spellcheck: false, class: 'code',
+      oninput: () => { p.customCss[key] = area.value; noteChange(false); },
+    });
+    return [h('label', { class: 'field' }, h('span', { textContent: label }), area), h('p', { class: 'hint', textContent: hint })];
+  };
+
+  $('sheetExtras').replaceChildren(
+    h('details', { open: p.fonts.length > 0 },
+      h('summary', { textContent: `Fonts (${p.fonts.length})` }),
+      h('p', { class: 'hint', textContent: 'Each font needs a direct link to a font file (.woff2, .otf, …). It goes into approved.css.' }),
+      ...fontRows, addFont,
+      h('label', { class: 'field' }, h('span', { textContent: 'Default font of the sheet' }), defSel)),
+    h('details', { open: !!(p.customCss.style || p.customCss.approved) },
+      h('summary', { textContent: 'Custom CSS' }),
+      ...cssBox('style', 'Extra style.css', 'Added at the end of style.css. Start selectors with .block-' + p.sheetName + '.'),
+      ...cssBox('approved', 'Extra approved.css', 'For CSS the normal filter removes, e.g. gradients. Same character rules apply.')),
+  );
+}
 
 // ---------- context menu ----------
 
@@ -301,7 +485,9 @@ function usedNamesExcept(node) {
 function setFieldLabel(node, label) {
   const p = node.props;
   const auto = !p.required && p.name === T.toFieldName(p.label || '');
+  const cellsBefore = T.cellCount(node);
   p.label = label;
+  T.fixRowCells(state.project.root, node, cellsBefore);
   if (auto) {
     const name = T.toFieldName(label);
     if (name && !T.fieldNameError(name, state.rules, usedNamesExcept(node))) p.name = name;
@@ -413,6 +599,19 @@ function fieldPanel(node, out) {
     out.push(labeled('Values (one per line)', area));
   }
 
+  if (['string', 'number', 'text', 'suggest', 'image'].includes(p.fieldType)) {
+    const ph = h('input', {
+      type: 'text', value: p.placeholder || '',
+      placeholder: p.fieldType === 'image' ? 'WA Image ID' : 'Shown in the empty input',
+      oninput: () => {
+        if (ph.value) p.placeholder = ph.value;
+        else delete p.placeholder;
+        changed();
+      },
+    });
+    out.push(labeled('Placeholder', ph));
+  }
+
   const parent = T.find(state.project.root, node.id).parent;
   if (parent && parent.type === 'tr') {
     out.push(h('p', { class: 'hint', textContent: 'In a table row this field fills two cells: label (th) and value (td).' }));
@@ -519,6 +718,21 @@ function renderSelection(node) {
   }
   if (['ul', 'ol', 'li'].includes(node.type)) {
     out.push(h('p', { class: 'hint', textContent: 'Right-click to add items. Double-click an empty item to type text. Fields can go into items.' }));
+  }
+
+  if (canFormat(node)) {
+    if (node.type !== 'field') ui.look = 'fmt';
+    const fonts = (state.project.fonts || []).map((f) => f.name).filter(Boolean);
+    out.push(h('h3', { class: 'sub', id: 'fmtSection', textContent: 'Format' }));
+    out.push(...buildFormat({
+      node,
+      look: ui.look,
+      setLook: (look) => { ui.look = look; renderSelection(node); },
+      rules: state.rules,
+      fonts,
+      set: (key, prop, value) => setFmt(node, key, prop, value),
+      refresh: () => renderSelection(node),
+    }));
   }
 
   const root = state.project.root;
@@ -823,7 +1037,12 @@ async function start() {
       classNameRe: new RegExp(rules.classNamePattern),
       fieldNameRe: new RegExp(rules.fieldNamePattern),
       forbiddenPrefixes: rules.forbiddenPrefixes,
+      colorRe: new RegExp(rules.colorPattern),
+      fontNameRe: new RegExp(rules.fontNamePattern),
+      fontURLRe: new RegExp(rules.fontURLPattern),
     };
+    const info = await api('GET', '/api/info');
+    $('appVersion').textContent = 'v' + info.version;
     setProject(await api('GET', '/api/project/new'), '');
   } catch (e) {
     toast(e.message, true);

@@ -10,7 +10,7 @@ const tagNames = {
 // Containers that get a text when you double-click them while empty.
 const textHolders = new Set(['li', 'th', 'td', 'card-header']);
 
-export function createEditor({ iframe, getProject, onChange, onSelect, openMenu, setFieldLabel }) {
+export function createEditor({ iframe, getProject, onChange, onSelect, openMenu, setFieldLabel, getFormatClass, openFormat }) {
   let doc = null;
   let bp = 'lg';
   let selectedId = null;
@@ -56,7 +56,8 @@ export function createEditor({ iframe, getProject, onChange, onSelect, openMenu,
   }
 
   function applyClasses(el, node, extra = []) {
-    el.className = [...nodeClasses(node), ...extra, 'ed-node'].join(' ');
+    const f = node.type === 'field' ? '' : getFormatClass(node.id);
+    el.className = [...nodeClasses(node), ...extra, ...(f ? [f] : []), 'ed-node'].join(' ');
     if (node.id === selectedId) el.classList.add('ed-selected');
     el.dataset.tag = tagText(node);
   }
@@ -82,12 +83,15 @@ export function createEditor({ iframe, getProject, onChange, onSelect, openMenu,
   function fieldParts(node) {
     const p = node.props || {};
     const cls = String(p.name || '').replaceAll('_', '-');
-    const lbl = doc.createElement('span');
-    lbl.className = `ed-label lbl lbl-${cls}`;
-    lbl.textContent = p.label || p.name;
+    let lbl = null;
+    if (String(p.label || '').trim()) {
+      lbl = doc.createElement('span');
+      lbl.className = `ed-label lbl lbl-${cls}`;
+      lbl.textContent = p.label;
+    }
     const val = doc.createElement('span');
     val.className = `ed-ph var var-${cls}`;
-    val.textContent = placeholder(p);
+    val.textContent = p.placeholder || placeholder(p);
     return [lbl, val];
   }
 
@@ -97,22 +101,24 @@ export function createEditor({ iframe, getProject, onChange, onSelect, openMenu,
 
     if (node.type === 'field' && parentType === 'tr') {
       // A field in a table row is two cells: label (th) and value (td).
+      // Without a label it is only the value cell.
       const [lbl, val] = fieldParts(node);
-      const th = doc.createElement('th');
-      const td = doc.createElement('td');
-      for (const [cell, part] of [[th, lbl], [td, val]]) {
+      const pairs = lbl ? [[doc.createElement('th'), lbl], [doc.createElement('td'), val]] : [[doc.createElement('td'), val]];
+      const frag = doc.createDocumentFragment();
+      for (const [cell, part] of pairs) {
         mark(cell, node);
         applyClasses(cell, node);
         cell.append(part);
+        frag.append(cell);
       }
-      const frag = doc.createDocumentFragment();
-      frag.append(th, td);
       return frag;
     }
 
-    const el = doc.createElement(tagNames[node.type] || 'div');
+    // A text directly in a col or card-body is a block (<div class='txt'>), as in the export.
+    const blockText = node.type === 'text' && (parentType === 'col' || parentType === 'card-body');
+    const el = doc.createElement(blockText ? 'div' : tagNames[node.type] || 'div');
     mark(el, node);
-    applyClasses(el, node);
+    applyClasses(el, node, blockText ? ['txt'] : []);
 
     switch (node.type) {
       case 'text':
@@ -120,9 +126,12 @@ export function createEditor({ iframe, getProject, onChange, onSelect, openMenu,
         return el;
       case 'field': {
         const [lbl, val] = fieldParts(node);
-        lbl.style.display = 'block';
         val.style.display = 'block';
-        el.append(lbl, val);
+        if (lbl) {
+          lbl.style.display = 'block';
+          el.append(lbl);
+        }
+        el.append(val);
         return el;
       }
       case 'image':
@@ -287,6 +296,14 @@ export function createEditor({ iframe, getProject, onChange, onSelect, openMenu,
     indicator = null;
   }
 
+  // fitNewCol: a new col is col-12 (full width on phones). Dropped into a row with
+  // free space, it also gets the free width for the current screen size.
+  function fitNewCol(col, row) {
+    const free = T.rowFreeSpace(row, bp);
+    if (free <= 0 || free >= 12) return;
+    T.setColWidth(col, bp, free);
+  }
+
   // startNewDrag takes a palette type: 'row', 'text', … or 'field:<fieldType>'.
   function startNewDrag(type) {
     const [t, fieldType] = type.split(':');
@@ -333,6 +350,7 @@ export function createEditor({ iframe, getProject, onChange, onSelect, openMenu,
     if (d.kind === 'new') {
       const nextId = T.idGen(root());
       const node = d.type === 'field' ? T.createField(root(), d.fieldType, nextId) : T.createNode(d.type, nextId);
+      if (node.type === 'col') fitNewCol(node, T.find(root(), t.parentId).node);
       T.insert(root(), t.parentId, t.index, node);
       id = node.id;
     } else {
@@ -474,10 +492,6 @@ export function createEditor({ iframe, getProject, onChange, onSelect, openMenu,
       const lbl = e.target.closest('.ed-label') || el.querySelector('.ed-label');
       if (!lbl) return;
       editText(lbl, (text) => {
-        if (!text) {
-          render();
-          return;
-        }
         setFieldLabel(node, text);
         commitChange(node.id);
       });
@@ -555,9 +569,9 @@ export function createEditor({ iframe, getProject, onChange, onSelect, openMenu,
 
   function menuItems(node) {
     if (node.type === 'card-header' || node.type === 'card-body') {
-      return cardPartItems(T.find(root(), node.id).parent);
+      return [{ label: 'Format…', action: () => openFormat(node) }, null, ...cardPartItems(T.find(root(), node.id).parent)];
     }
-    const items = [];
+    const items = [{ label: 'Format…', action: () => openFormat(node) }, null];
     if (node.type === 'card') items.push(...cardPartItems(node), null);
     if (inTable(node)) items.push(...tableItems(node), null);
     if (inList(node)) items.push({ label: 'Add item', action: () => run(() => T.listAddItem(root(), node.id).id) }, null);
@@ -658,5 +672,6 @@ export function createEditor({ iframe, getProject, onChange, onSelect, openMenu,
     duplicate: duplicateNode,
     remove: removeNode,
     get selectedId() { return selectedId; },
+    get editing() { return !!editing; },
   };
 }
