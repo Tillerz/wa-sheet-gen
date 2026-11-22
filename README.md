@@ -100,6 +100,14 @@ Settings like recent sheets, and the autosave of unsaved work, are stored in `%A
 ### Themes
 <img alt="Themes" src="docs/themes.png" width="350px">
 
+### Examples
+
+You can find the project files in [docs/examples/](docs/examples/). Copy an example folder, then open it with `Open…` in the app.
+
+#### Example 1
+
+<img alt="Example 1" src="docs/examples/example1/screenshot.png" width="75%">
+
 ## Build from source
 
 You need:

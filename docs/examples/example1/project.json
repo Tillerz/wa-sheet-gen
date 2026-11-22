@@ -1,0 +1,1140 @@
+{
+  "version": 2,
+  "sheetName": "example1",
+  "fonts": [
+    {
+      "name": "Alegreya Regular",
+      "url": "https://worldanvil-static.sfo2.cdn.digitaloceanspaces.com/fonts/Alegreya-Regular.otf"
+    },
+    {
+      "name": "PT Sans Narrow",
+      "url": "https://worldanvil-static.sfo2.cdn.digitaloceanspaces.com/fonts/PTSansNarrow-Regular.ttf"
+    }
+  ],
+  "theme": "cozy-fantasy",
+  "customCss": {
+    "style": "",
+    "approved": ""
+  },
+  "root": {
+    "id": "n1",
+    "type": "container",
+    "children": [
+      {
+        "id": "n2",
+        "type": "row",
+        "children": [
+          {
+            "id": "n3",
+            "type": "col",
+            "props": {
+              "col": 12,
+              "lg": 8
+            },
+            "children": [
+              {
+                "id": "n4",
+                "type": "card",
+                "children": [
+                  {
+                    "id": "n5",
+                    "type": "card-header",
+                    "props": {
+                      "fmt": {
+                        "size": 24
+                      }
+                    },
+                    "children": [
+                      {
+                        "id": "n6",
+                        "type": "text",
+                        "props": {
+                          "text": "Personal"
+                        }
+                      }
+                    ]
+                  },
+                  {
+                    "id": "n7",
+                    "type": "card-body",
+                    "children": [
+                      {
+                        "id": "n10",
+                        "type": "table",
+                        "children": [
+                          {
+                            "id": "n11",
+                            "type": "tr",
+                            "children": [
+                              {
+                                "id": "n42",
+                                "type": "th",
+                                "children": [
+                                  {
+                                    "id": "n43",
+                                    "type": "flabel",
+                                    "props": {
+                                      "field": "n8"
+                                    }
+                                  }
+                                ]
+                              },
+                              {
+                                "id": "n44",
+                                "type": "td",
+                                "children": [
+                                  {
+                                    "id": "n8",
+                                    "type": "field",
+                                    "props": {
+                                      "fieldType": "string",
+                                      "label": "Name",
+                                      "name": "name",
+                                      "required": true
+                                    }
+                                  }
+                                ]
+                              }
+                            ]
+                          },
+                          {
+                            "id": "n14",
+                            "type": "tr",
+                            "children": [
+                              {
+                                "id": "n45",
+                                "type": "th",
+                                "children": [
+                                  {
+                                    "id": "n46",
+                                    "type": "flabel",
+                                    "props": {
+                                      "field": "n20"
+                                    }
+                                  }
+                                ]
+                              },
+                              {
+                                "id": "n47",
+                                "type": "td",
+                                "children": [
+                                  {
+                                    "id": "n20",
+                                    "type": "field",
+                                    "props": {
+                                      "fieldType": "string",
+                                      "label": "Class",
+                                      "name": "class"
+                                    }
+                                  }
+                                ]
+                              }
+                            ]
+                          },
+                          {
+                            "id": "n17",
+                            "type": "tr",
+                            "children": [
+                              {
+                                "id": "n48",
+                                "type": "th",
+                                "children": [
+                                  {
+                                    "id": "n49",
+                                    "type": "flabel",
+                                    "props": {
+                                      "field": "n21"
+                                    }
+                                  }
+                                ]
+                              },
+                              {
+                                "id": "n50",
+                                "type": "td",
+                                "children": [
+                                  {
+                                    "id": "n21",
+                                    "type": "field",
+                                    "props": {
+                                      "fieldType": "string",
+                                      "label": "Level",
+                                      "name": "level"
+                                    }
+                                  }
+                                ]
+                              }
+                            ]
+                          }
+                        ]
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "id": "n9",
+            "type": "col",
+            "props": {
+              "col": 6,
+              "lg": 4
+            },
+            "children": [
+              {
+                "id": "n22",
+                "type": "card",
+                "children": [
+                  {
+                    "id": "n23",
+                    "type": "card-header",
+                    "props": {
+                      "fmt": {
+                        "size": 18
+                      }
+                    },
+                    "children": [
+                      {
+                        "id": "n24",
+                        "type": "text",
+                        "props": {
+                          "text": "Portrait"
+                        }
+                      }
+                    ]
+                  },
+                  {
+                    "id": "n25",
+                    "type": "card-body",
+                    "children": [
+                      {
+                        "id": "n41",
+                        "type": "field",
+                        "props": {
+                          "fieldType": "image",
+                          "fmt": {
+                            "align": "center"
+                          },
+                          "label": "Portrait",
+                          "name": "portrait"
+                        }
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "id": "n27",
+        "type": "row",
+        "children": [
+          {
+            "id": "n29",
+            "type": "col",
+            "props": {
+              "col": 6
+            },
+            "children": [
+              {
+                "id": "n30",
+                "type": "card",
+                "children": [
+                  {
+                    "id": "n31",
+                    "type": "card-header",
+                    "props": {
+                      "fmt": {
+                        "size": 18
+                      }
+                    },
+                    "children": [
+                      {
+                        "id": "n32",
+                        "type": "text",
+                        "props": {
+                          "text": "Inventory"
+                        }
+                      }
+                    ]
+                  },
+                  {
+                    "id": "n33",
+                    "type": "card-body",
+                    "children": [
+                      {
+                        "id": "n34",
+                        "type": "field",
+                        "props": {
+                          "description": "xxx",
+                          "fieldType": "text",
+                          "label": "Inventory",
+                          "name": "inventory",
+                          "rows": 3
+                        }
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "id": "n52",
+            "type": "col",
+            "props": {
+              "col": 12,
+              "lg": 6
+            },
+            "children": [
+              {
+                "id": "n54",
+                "type": "card",
+                "children": [
+                  {
+                    "id": "n55",
+                    "type": "card-header",
+                    "props": {
+                      "fmt": {
+                        "size": 18
+                      }
+                    },
+                    "children": [
+                      {
+                        "id": "n56",
+                        "type": "text",
+                        "props": {
+                          "text": "Weapons"
+                        }
+                      }
+                    ]
+                  },
+                  {
+                    "id": "n57",
+                    "type": "card-body",
+                    "children": [
+                      {
+                        "id": "n62",
+                        "type": "table",
+                        "props": {
+                          "labels": "top"
+                        },
+                        "children": [
+                          {
+                            "id": "n63",
+                            "type": "tr",
+                            "children": [
+                              {
+                                "id": "n64",
+                                "type": "th",
+                                "children": [
+                                  {
+                                    "id": "n78",
+                                    "type": "text",
+                                    "props": {
+                                      "text": "Weapon"
+                                    }
+                                  }
+                                ]
+                              },
+                              {
+                                "id": "n65",
+                                "type": "th",
+                                "props": {
+                                  "fmt": {
+                                    "align": "center"
+                                  }
+                                },
+                                "children": [
+                                  {
+                                    "id": "n79",
+                                    "type": "text",
+                                    "props": {
+                                      "text": "Skill"
+                                    }
+                                  }
+                                ]
+                              },
+                              {
+                                "id": "n69",
+                                "type": "th",
+                                "props": {
+                                  "fmt": {
+                                    "align": "center"
+                                  }
+                                },
+                                "children": [
+                                  {
+                                    "id": "n80",
+                                    "type": "text",
+                                    "props": {
+                                      "fmt": {
+                                        "align": "center"
+                                      },
+                                      "text": "Range"
+                                    }
+                                  }
+                                ]
+                              },
+                              {
+                                "id": "n75",
+                                "type": "th",
+                                "props": {
+                                  "fmt": {
+                                    "align": "center"
+                                  }
+                                },
+                                "children": [
+                                  {
+                                    "id": "n81",
+                                    "type": "text",
+                                    "props": {
+                                      "text": "Damage"
+                                    }
+                                  }
+                                ]
+                              }
+                            ]
+                          },
+                          {
+                            "id": "n71",
+                            "type": "tr",
+                            "props": {
+                              "repeat": 5
+                            },
+                            "children": [
+                              {
+                                "id": "n72",
+                                "type": "td",
+                                "children": [
+                                  {
+                                    "id": "n82",
+                                    "type": "field",
+                                    "props": {
+                                      "fieldType": "string",
+                                      "label": "",
+                                      "name": "weapon_name"
+                                    }
+                                  }
+                                ]
+                              },
+                              {
+                                "id": "n73",
+                                "type": "td",
+                                "props": {
+                                  "fmt": {
+                                    "align": "center"
+                                  }
+                                },
+                                "children": [
+                                  {
+                                    "id": "n83",
+                                    "type": "field",
+                                    "props": {
+                                      "fieldType": "string",
+                                      "label": "",
+                                      "name": "weapon_skill"
+                                    }
+                                  }
+                                ]
+                              },
+                              {
+                                "id": "n74",
+                                "type": "td",
+                                "children": [
+                                  {
+                                    "id": "n84",
+                                    "type": "field",
+                                    "props": {
+                                      "fieldType": "string",
+                                      "fmt": {
+                                        "align": "center"
+                                      },
+                                      "label": "",
+                                      "name": "weapon_range"
+                                    }
+                                  }
+                                ]
+                              },
+                              {
+                                "id": "n76",
+                                "type": "td",
+                                "children": [
+                                  {
+                                    "id": "n85",
+                                    "type": "field",
+                                    "props": {
+                                      "fieldType": "string",
+                                      "fmt": {
+                                        "align": "center"
+                                      },
+                                      "label": "",
+                                      "name": "weapon_damage"
+                                    }
+                                  }
+                                ]
+                              }
+                            ]
+                          }
+                        ]
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "id": "n51",
+        "type": "row",
+        "children": [
+          {
+            "id": "n86",
+            "type": "col",
+            "props": {
+              "col": 12,
+              "lg": 4
+            },
+            "children": [
+              {
+                "id": "n89",
+                "type": "card",
+                "children": [
+                  {
+                    "id": "n90",
+                    "type": "card-header",
+                    "children": [
+                      {
+                        "id": "n91",
+                        "type": "text",
+                        "props": {
+                          "text": "Skills"
+                        }
+                      }
+                    ]
+                  },
+                  {
+                    "id": "n92",
+                    "type": "card-body",
+                    "children": [
+                      {
+                        "id": "n101",
+                        "type": "table",
+                        "props": {
+                          "labels": "top"
+                        },
+                        "children": [
+                          {
+                            "id": "n102",
+                            "type": "tr",
+                            "children": [
+                              {
+                                "id": "n103",
+                                "type": "th",
+                                "props": {
+                                  "fmt": {
+                                    "width": 60
+                                  }
+                                },
+                                "children": [
+                                  {
+                                    "id": "n110",
+                                    "type": "text",
+                                    "props": {
+                                      "text": "Skill"
+                                    }
+                                  }
+                                ]
+                              },
+                              {
+                                "id": "n104",
+                                "type": "td",
+                                "props": {
+                                  "fmt": {
+                                    "align": "center",
+                                    "width": 40
+                                  }
+                                },
+                                "children": [
+                                  {
+                                    "id": "n111",
+                                    "type": "text",
+                                    "props": {
+                                      "text": "Value"
+                                    }
+                                  }
+                                ]
+                              },
+                              {
+                                "id": "n108",
+                                "type": "td",
+                                "children": [
+                                  {
+                                    "id": "n112",
+                                    "type": "text",
+                                    "props": {
+                                      "text": "Check"
+                                    }
+                                  }
+                                ]
+                              }
+                            ]
+                          },
+                          {
+                            "id": "n105",
+                            "type": "tr",
+                            "props": {
+                              "repeat": 10
+                            },
+                            "children": [
+                              {
+                                "id": "n106",
+                                "type": "td",
+                                "children": [
+                                  {
+                                    "id": "n113",
+                                    "type": "field",
+                                    "props": {
+                                      "fieldType": "string",
+                                      "label": "Skill Name",
+                                      "name": "skill_name",
+                                      "preset": [
+                                        "Appraise",
+                                        "Art",
+                                        "Artillery",
+                                        "Bargain",
+                                        "Brawl",
+                                        "Climb",
+                                        "Command",
+                                        "Craft",
+                                        "Demolition",
+                                        "Disguise",
+                                        "Dodge",
+                                        "Drive",
+                                        "Energy Weapon",
+                                        "Etiquette",
+                                        "Fast Talk",
+                                        "Fine Manipulation",
+                                        "Firearm",
+                                        "First Aid",
+                                        "Gaming",
+                                        "Grapple",
+                                        "Heavy Machine",
+                                        "Heavy Weapon",
+                                        "Hide",
+                                        "Insight",
+                                        "Jump",
+                                        "Knowledge",
+                                        "Language",
+                                        "Listen",
+                                        "Literacy",
+                                        "Martial Arts",
+                                        "Medicine",
+                                        "Melee Weapon",
+                                        "Missile Weapon",
+                                        "Navigate",
+                                        "Perform",
+                                        "Persuade",
+                                        "Pilot",
+                                        "Projection",
+                                        "Psychic",
+                                        "Repair",
+                                        "Research",
+                                        "Ride",
+                                        "Science",
+                                        "Sense",
+                                        "Shield",
+                                        "Sleight of Hand",
+                                        "Spot",
+                                        "Status",
+                                        "Stealth",
+                                        "Strategy",
+                                        "Swim",
+                                        "Teach",
+                                        "Technical",
+                                        "Throw",
+                                        "Track"
+                                      ]
+                                    }
+                                  }
+                                ]
+                              },
+                              {
+                                "id": "n107",
+                                "type": "td",
+                                "children": [
+                                  {
+                                    "id": "n114",
+                                    "type": "field",
+                                    "props": {
+                                      "fieldType": "number",
+                                      "fmt": {
+                                        "align": "center"
+                                      },
+                                      "label": "Skill Value",
+                                      "name": "skill_value"
+                                    }
+                                  }
+                                ]
+                              },
+                              {
+                                "id": "n109",
+                                "type": "td",
+                                "children": [
+                                  {
+                                    "id": "n115",
+                                    "type": "field",
+                                    "props": {
+                                      "fieldType": "checkbox",
+                                      "label": "Skill Checked",
+                                      "name": "skill_checked"
+                                    }
+                                  }
+                                ]
+                              }
+                            ]
+                          }
+                        ]
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "id": "n87",
+            "type": "col",
+            "props": {
+              "col": 12,
+              "lg": 4
+            },
+            "children": [
+              {
+                "id": "n93",
+                "type": "card",
+                "children": [
+                  {
+                    "id": "n94",
+                    "type": "card-header",
+                    "children": [
+                      {
+                        "id": "n95",
+                        "type": "text",
+                        "props": {
+                          "text": "Skills"
+                        }
+                      }
+                    ]
+                  },
+                  {
+                    "id": "n96",
+                    "type": "card-body",
+                    "children": [
+                      {
+                        "id": "n116",
+                        "type": "table",
+                        "props": {
+                          "labels": "top"
+                        },
+                        "children": [
+                          {
+                            "id": "n117",
+                            "type": "tr",
+                            "children": [
+                              {
+                                "id": "n118",
+                                "type": "th",
+                                "props": {
+                                  "fmt": {
+                                    "width": 60
+                                  }
+                                },
+                                "children": [
+                                  {
+                                    "id": "n119",
+                                    "type": "text",
+                                    "props": {
+                                      "text": "Skill"
+                                    }
+                                  }
+                                ]
+                              },
+                              {
+                                "id": "n120",
+                                "type": "td",
+                                "props": {
+                                  "fmt": {
+                                    "align": "center",
+                                    "width": 40
+                                  }
+                                },
+                                "children": [
+                                  {
+                                    "id": "n121",
+                                    "type": "text",
+                                    "props": {
+                                      "text": "Value"
+                                    }
+                                  }
+                                ]
+                              },
+                              {
+                                "id": "n122",
+                                "type": "td",
+                                "children": [
+                                  {
+                                    "id": "n123",
+                                    "type": "text",
+                                    "props": {
+                                      "text": "Check"
+                                    }
+                                  }
+                                ]
+                              }
+                            ]
+                          },
+                          {
+                            "id": "n124",
+                            "type": "tr",
+                            "props": {
+                              "repeat": 10,
+                              "repeatStart": 11
+                            },
+                            "children": [
+                              {
+                                "id": "n125",
+                                "type": "td",
+                                "children": [
+                                  {
+                                    "id": "n126",
+                                    "type": "field",
+                                    "props": {
+                                      "fieldType": "string",
+                                      "label": "Skill Name",
+                                      "name": "skill_name",
+                                      "preset": [
+                                        "Appraise",
+                                        "Art",
+                                        "Artillery",
+                                        "Bargain",
+                                        "Brawl",
+                                        "Climb",
+                                        "Command",
+                                        "Craft",
+                                        "Demolition",
+                                        "Disguise",
+                                        "Dodge",
+                                        "Drive",
+                                        "Energy Weapon",
+                                        "Etiquette",
+                                        "Fast Talk",
+                                        "Fine Manipulation",
+                                        "Firearm",
+                                        "First Aid",
+                                        "Gaming",
+                                        "Grapple",
+                                        "Heavy Machine",
+                                        "Heavy Weapon",
+                                        "Hide",
+                                        "Insight",
+                                        "Jump",
+                                        "Knowledge",
+                                        "Language",
+                                        "Listen",
+                                        "Literacy",
+                                        "Martial Arts",
+                                        "Medicine",
+                                        "Melee Weapon",
+                                        "Missile Weapon",
+                                        "Navigate",
+                                        "Perform",
+                                        "Persuade",
+                                        "Pilot",
+                                        "Projection",
+                                        "Psychic",
+                                        "Repair",
+                                        "Research",
+                                        "Ride",
+                                        "Science",
+                                        "Sense",
+                                        "Shield",
+                                        "Sleight of Hand",
+                                        "Spot",
+                                        "Status",
+                                        "Stealth",
+                                        "Strategy",
+                                        "Swim",
+                                        "Teach",
+                                        "Technical",
+                                        "Throw",
+                                        "Track"
+                                      ]
+                                    }
+                                  }
+                                ]
+                              },
+                              {
+                                "id": "n127",
+                                "type": "td",
+                                "children": [
+                                  {
+                                    "id": "n128",
+                                    "type": "field",
+                                    "props": {
+                                      "fieldType": "number",
+                                      "label": "Skill Value",
+                                      "name": "skill_value"
+                                    }
+                                  }
+                                ]
+                              },
+                              {
+                                "id": "n129",
+                                "type": "td",
+                                "children": [
+                                  {
+                                    "id": "n130",
+                                    "type": "field",
+                                    "props": {
+                                      "fieldType": "checkbox",
+                                      "label": "Skill Checked",
+                                      "name": "skill_checked"
+                                    }
+                                  }
+                                ]
+                              }
+                            ]
+                          }
+                        ]
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "id": "n88",
+            "type": "col",
+            "props": {
+              "col": 12,
+              "lg": 4
+            },
+            "children": [
+              {
+                "id": "n97",
+                "type": "card",
+                "children": [
+                  {
+                    "id": "n98",
+                    "type": "card-header",
+                    "children": [
+                      {
+                        "id": "n99",
+                        "type": "text",
+                        "props": {
+                          "text": "Skills"
+                        }
+                      }
+                    ]
+                  },
+                  {
+                    "id": "n100",
+                    "type": "card-body",
+                    "children": [
+                      {
+                        "id": "n131",
+                        "type": "table",
+                        "props": {
+                          "labels": "top"
+                        },
+                        "children": [
+                          {
+                            "id": "n132",
+                            "type": "tr",
+                            "children": [
+                              {
+                                "id": "n133",
+                                "type": "th",
+                                "props": {
+                                  "fmt": {
+                                    "width": 60
+                                  }
+                                },
+                                "children": [
+                                  {
+                                    "id": "n134",
+                                    "type": "text",
+                                    "props": {
+                                      "text": "Skill"
+                                    }
+                                  }
+                                ]
+                              },
+                              {
+                                "id": "n135",
+                                "type": "td",
+                                "props": {
+                                  "fmt": {
+                                    "align": "center",
+                                    "width": 40
+                                  }
+                                },
+                                "children": [
+                                  {
+                                    "id": "n136",
+                                    "type": "text",
+                                    "props": {
+                                      "text": "Value"
+                                    }
+                                  }
+                                ]
+                              },
+                              {
+                                "id": "n137",
+                                "type": "td",
+                                "children": [
+                                  {
+                                    "id": "n138",
+                                    "type": "text",
+                                    "props": {
+                                      "text": "Check"
+                                    }
+                                  }
+                                ]
+                              }
+                            ]
+                          },
+                          {
+                            "id": "n139",
+                            "type": "tr",
+                            "props": {
+                              "repeat": 10,
+                              "repeatStart": 21
+                            },
+                            "children": [
+                              {
+                                "id": "n140",
+                                "type": "td",
+                                "children": [
+                                  {
+                                    "id": "n141",
+                                    "type": "field",
+                                    "props": {
+                                      "fieldType": "string",
+                                      "label": "Skill Name",
+                                      "name": "skill_name",
+                                      "preset": [
+                                        "Appraise",
+                                        "Art",
+                                        "Artillery",
+                                        "Bargain",
+                                        "Brawl",
+                                        "Climb",
+                                        "Command",
+                                        "Craft",
+                                        "Demolition",
+                                        "Disguise",
+                                        "Dodge",
+                                        "Drive",
+                                        "Energy Weapon",
+                                        "Etiquette",
+                                        "Fast Talk",
+                                        "Fine Manipulation",
+                                        "Firearm",
+                                        "First Aid",
+                                        "Gaming",
+                                        "Grapple",
+                                        "Heavy Machine",
+                                        "Heavy Weapon",
+                                        "Hide",
+                                        "Insight",
+                                        "Jump",
+                                        "Knowledge",
+                                        "Language",
+                                        "Listen",
+                                        "Literacy",
+                                        "Martial Arts",
+                                        "Medicine",
+                                        "Melee Weapon",
+                                        "Missile Weapon",
+                                        "Navigate",
+                                        "Perform",
+                                        "Persuade",
+                                        "Pilot",
+                                        "Projection",
+                                        "Psychic",
+                                        "Repair",
+                                        "Research",
+                                        "Ride",
+                                        "Science",
+                                        "Sense",
+                                        "Shield",
+                                        "Sleight of Hand",
+                                        "Spot",
+                                        "Status",
+                                        "Stealth",
+                                        "Strategy",
+                                        "Swim",
+                                        "Teach",
+                                        "Technical",
+                                        "Throw",
+                                        "Track"
+                                      ]
+                                    }
+                                  }
+                                ]
+                              },
+                              {
+                                "id": "n142",
+                                "type": "td",
+                                "children": [
+                                  {
+                                    "id": "n143",
+                                    "type": "field",
+                                    "props": {
+                                      "fieldType": "number",
+                                      "label": "Skill Value",
+                                      "name": "skill_value"
+                                    }
+                                  }
+                                ]
+                              },
+                              {
+                                "id": "n144",
+                                "type": "td",
+                                "children": [
+                                  {
+                                    "id": "n145",
+                                    "type": "field",
+                                    "props": {
+                                      "fieldType": "checkbox",
+                                      "fmt": {
+                                        "align": "center"
+                                      },
+                                      "label": "Skill Checked",
+                                      "name": "skill_checked"
+                                    }
+                                  }
+                                ]
+                              }
+                            ]
+                          }
+                        ]
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  }
+}
