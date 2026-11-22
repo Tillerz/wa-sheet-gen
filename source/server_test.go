@@ -181,3 +181,18 @@ func TestSheetNameRules(t *testing.T) {
 		}
 	}
 }
+
+func TestClassNameRules(t *testing.T) {
+	ok := []string{"skills", "card-2", "hp"}
+	bad := []string{"", "Skills", "2col", "my_card", "shield", "python", "desc-script", "a--b"}
+	for _, n := range ok {
+		if err := validateClassName(n); err != nil {
+			t.Errorf("%q: unexpected error %v", n, err)
+		}
+	}
+	for _, n := range bad {
+		if err := validateClassName(n); err == nil {
+			t.Errorf("%q: expected an error", n)
+		}
+	}
+}

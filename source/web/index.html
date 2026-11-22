@@ -19,8 +19,24 @@
   </header>
 
   <main class="workspace">
+    <aside class="palette">
+      <h2>Elements</h2>
+      <div class="palette-item" draggable="true" data-type="row"><span class="pi-icon">▭</span>Row</div>
+      <div class="palette-item" draggable="true" data-type="col"><span class="pi-icon">▯</span>Col</div>
+      <div class="palette-item" draggable="true" data-type="card"><span class="pi-icon">▤</span>Card</div>
+      <p class="hint">Drag an element into the sheet. A row goes into the sheet, a card body or a col. A col goes into a row. A card goes into a col.</p>
+    </aside>
     <section class="canvas-wrap">
-      <iframe id="canvas" src="canvas.html" title="Sheet canvas"></iframe>
+      <div class="canvas-bar">
+        <div class="segmented" id="bpSwitch" title="Screen size: sets the canvas width and which col width you change">
+          <button type="button" data-bp="col" class="active">All sizes</button>
+          <button type="button" data-bp="md">Medium</button>
+          <button type="button" data-bp="lg">Large</button>
+        </div>
+      </div>
+      <div class="canvas-scroll">
+        <iframe id="canvas" src="canvas.html" title="Sheet canvas"></iframe>
+      </div>
     </section>
     <aside class="panel">
       <h2>Sheet</h2>
@@ -30,6 +46,9 @@
       </label>
       <p class="error" id="sheetNameErr"></p>
       <p class="hint">Root class: <code id="rootClass"></code></p>
+
+      <h2>Selection</h2>
+      <div id="selection"></div>
 
       <h2>Project folder</h2>
       <p class="path" id="folderPath"></p>
@@ -56,6 +75,8 @@
       </div>
     </div>
   </dialog>
+
+  <div id="ctxMenu" class="menu" hidden></div>
 
   <div id="toast" role="status"></div>
 

@@ -81,8 +81,10 @@ func readJSON(w http.ResponseWriter, r *http.Request, v any) error {
 // rules gives the UI the same naming rules the server checks, so they live in one place.
 func (s *server) rules(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, map[string]any{
-		"bannedWords":      bannedWords,
-		"sheetNamePattern": sheetNameRe.String(),
+		"bannedWords":       bannedWords,
+		"sheetNamePattern":  sheetNameRe.String(),
+		"classNamePattern":  classNameRe.String(),
+		"forbiddenPrefixes": forbiddenClassPrefixes,
 	})
 }
 

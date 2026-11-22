@@ -1,4 +1,6 @@
 // WA Sheet Generator — editor UI. Plain JavaScript, no libraries.
+import { createEditor } from './editor.js';
+import * as T from './tree.js';
 
 const $ = (id) => document.getElementById(id);
 
@@ -16,7 +18,7 @@ const state = {
   project: null,
   folder: '',
   dirty: false,
-  rules: { bannedWords: [], sheetNameRe: /^$/ },
+  rules: { bannedWords: [], sheetNameRe: /^$/, classNameRe: /^$/, forbiddenPrefixes: [] },
 };
 
 async function api(method, path, body) {
@@ -67,7 +69,8 @@ function setProject(project, folder) {
   $('sheetName').value = project.sheetName;
   checkSheetName();
   setDirty(false);
-  renderCanvas();
+  editor.render();
+  editor.select(null);
 }
 
 function sheetNameError(name) {
@@ -91,57 +94,173 @@ function confirmDiscard() {
   return !state.dirty || confirm('You have unsaved changes. Discard them?');
 }
 
-// ---------- canvas ----------
+// ---------- canvas editor ----------
 
-function canvasDoc() {
-  const doc = $('canvas').contentDocument;
-  return doc && doc.getElementById('sheet') ? doc : null;
-}
+const editor = createEditor({
+  iframe: $('canvas'),
+  getProject: () => state.project,
+  onChange: () => setDirty(true),
+  onSelect: renderSelection,
+  openMenu,
+});
 
-function colClasses(props = {}) {
-  const cls = [];
-  if (props.col) cls.push(`col-${props.col}`);
-  if (props.md) cls.push(`col-md-${props.md}`);
-  if (props.lg) cls.push(`col-lg-${props.lg}`);
-  return cls.length ? cls : ['col'];
-}
+// Palette: drag new elements into the canvas.
+document.querySelectorAll('.palette-item').forEach((el) => {
+  el.addEventListener('dragstart', (e) => {
+    e.dataTransfer.setData('text/plain', el.dataset.type);
+    e.dataTransfer.effectAllowed = 'copy';
+    editor.startNewDrag(el.dataset.type);
+  });
+  el.addEventListener('dragend', () => editor.endDrag());
+});
 
-// renderNode builds DOM with textContent only, so user text can never become HTML.
-function renderNode(doc, node) {
-  const el = doc.createElement('div');
-  el.dataset.id = node.id;
-  const p = node.props || {};
-  switch (node.type) {
-    case 'container':
-      el.className = `container-fluid block-${state.project.sheetName}`;
-      break;
-    case 'row':
-      el.className = 'row';
-      break;
-    case 'col':
-      el.className = colClasses(p).join(' ');
-      break;
-    case 'field': {
-      const cls = String(p.name || '').replaceAll('_', '-');
-      const lbl = doc.createElement('div');
-      lbl.className = `lbl lbl-${cls}`;
-      lbl.textContent = p.label || p.name;
-      const val = doc.createElement('div');
-      val.className = `var var-${cls}`;
-      el.append(lbl, val);
-      return el;
-    }
-    default:
-      el.textContent = `[${node.type}]`;
+// Breakpoint switch: canvas width and which col width the resize handle changes.
+document.querySelectorAll('#bpSwitch button').forEach((b) => {
+  b.addEventListener('click', () => {
+    document.querySelectorAll('#bpSwitch button').forEach((x) => x.classList.toggle('active', x === b));
+    editor.setBreakpoint(b.dataset.bp);
+  });
+});
+
+// ---------- context menu ----------
+
+function openMenu(items, x, y) {
+  const m = $('ctxMenu');
+  if (!items) {
+    m.hidden = true;
+    return;
   }
-  for (const child of node.children || []) el.append(renderNode(doc, child));
+  m.replaceChildren(...items.map((it) => {
+    if (it === null) return document.createElement('hr');
+    const b = document.createElement('button');
+    b.type = 'button';
+    b.textContent = it.label;
+    b.disabled = !!it.disabled;
+    if (it.danger) b.classList.add('danger');
+    b.addEventListener('click', () => {
+      m.hidden = true;
+      it.action();
+    });
+    return b;
+  }));
+  m.hidden = false;
+  m.style.left = `${Math.min(x, innerWidth - m.offsetWidth - 8)}px`;
+  m.style.top = `${Math.min(y, innerHeight - m.offsetHeight - 8)}px`;
+}
+
+document.addEventListener('mousedown', (e) => {
+  if (!$('ctxMenu').contains(e.target)) openMenu(null);
+});
+document.addEventListener('keydown', (e) => {
+  if (e.key === 'Escape') openMenu(null);
+});
+
+// ---------- properties panel ----------
+
+function h(tag, attrs = {}, ...children) {
+  const el = document.createElement(tag);
+  for (const [k, v] of Object.entries(attrs)) {
+    if (k.startsWith('on')) el.addEventListener(k.slice(2), v);
+    else if (k === 'class') el.className = v;
+    else el[k] = v;
+  }
+  el.append(...children);
   return el;
 }
 
-function renderCanvas() {
-  const doc = canvasDoc();
-  if (!doc || !state.project) return;
-  doc.getElementById('sheet').replaceChildren(renderNode(doc, state.project.root));
+function classNameError(name) {
+  const r = state.rules;
+  if (!r.classNameRe.test(name)) return 'Start with a-z, then use only a-z, 0-9 and single - between words.';
+  const prefix = r.forbiddenPrefixes.find((p) => name.startsWith(p));
+  if (prefix) return `Must not start with "${prefix}".`;
+  const bad = r.bannedWords.find((w) => name.includes(w));
+  if (bad) return `Contains "${bad}", which the WA filter removes.`;
+  return '';
+}
+
+const typeNames = {
+  container: 'Sheet root', row: 'Row', col: 'Col', card: 'Card',
+  'card-header': 'Card header', 'card-body': 'Card body', field: 'Field', text: 'Text',
+};
+
+const colWidthKeys = [
+  ['col', 'All sizes', 'col-x'],
+  ['md', 'Medium and up', 'col-md-x'],
+  ['lg', 'Large and up', 'col-lg-x'],
+];
+
+function changed() {
+  setDirty(true);
+  editor.render();
+}
+
+function renderSelection(node) {
+  const box = $('selection');
+  if (!node) {
+    box.replaceChildren(h('p', { class: 'hint', textContent: 'Click an element in the sheet to select it.' }));
+    return;
+  }
+  const out = [h('div', { class: 'sel-type', textContent: typeNames[node.type] || node.type })];
+  const p = (node.props ||= {});
+
+  if (node.type === 'col') {
+    for (const [key, label, cls] of colWidthKeys) {
+      const input = h('input', {
+        type: 'number', min: 1, max: 12, placeholder: 'unset', value: p[key] ?? '',
+        oninput: () => {
+          T.setColWidth(node, key, input.value === '' ? null : input.value);
+          changed();
+        },
+        onchange: () => { input.value = node.props[key] ?? ''; },
+      });
+      out.push(h('label', { class: 'field' }, h('span', { textContent: `${label} (${cls})` }), input));
+    }
+    out.push(h('p', { class: 'hint', textContent: 'Values 1–12. Leave empty to unset.' }));
+  }
+
+  if (node.type === 'card') {
+    const err = h('p', { class: 'error' });
+    const input = h('input', {
+      type: 'text', value: p.cls || '', placeholder: 'e.g. skills', spellcheck: false,
+      oninput: () => {
+        const v = input.value.trim();
+        const msg = v ? classNameError(v) : '';
+        err.textContent = msg;
+        input.classList.toggle('invalid', !!msg);
+        if (msg) return;
+        if (v) p.cls = v;
+        else delete p.cls;
+        changed();
+      },
+    });
+    out.push(h('label', { class: 'field' }, h('span', { textContent: 'Extra class' }), input), err);
+  }
+
+  if (node.type === 'field') {
+    out.push(h('p', { class: 'hint', textContent: `Name: ${p.name} · Type: ${p.fieldType}` }));
+    out.push(h('p', { class: 'hint', textContent: 'Field settings come in milestone 3.' }));
+  }
+
+  if (node.type === 'text') {
+    out.push(h('p', { class: 'hint', textContent: `Text: ${p.text || ''}` }));
+    out.push(h('p', { class: 'hint', textContent: 'Text editing comes in milestone 3.' }));
+  }
+
+  const root = state.project.root;
+  const actions = h('div', { class: 'sel-actions' });
+  if (node.id !== root.id && !['card-header', 'card-body', 'text'].includes(node.type)) {
+    actions.append(h('button', { type: 'button', textContent: 'Duplicate', onclick: () => editor.duplicate(node.id) }));
+  }
+  if (node.id !== root.id && node.type !== 'text') {
+    const can = T.canRemove(root, node.id);
+    actions.append(h('button', {
+      type: 'button', class: 'danger', textContent: 'Delete', disabled: !can,
+      title: can ? '' : 'Holds the name field',
+      onclick: () => editor.remove(node.id),
+    }));
+  }
+  if (actions.children.length) out.push(actions);
+  box.replaceChildren(...out);
 }
 
 // ---------- folder dialog ----------
@@ -329,10 +448,8 @@ $('sheetName').addEventListener('input', () => {
   state.project.sheetName = $('sheetName').value;
   checkSheetName();
   setDirty(true);
-  renderCanvas();
+  editor.render();
 });
-
-$('canvas').addEventListener('load', renderCanvas);
 
 window.addEventListener('beforeunload', (e) => {
   if (state.dirty) e.preventDefault();
@@ -343,7 +460,12 @@ window.addEventListener('beforeunload', (e) => {
 async function start() {
   try {
     const rules = await api('GET', '/api/rules');
-    state.rules = { bannedWords: rules.bannedWords, sheetNameRe: new RegExp(rules.sheetNamePattern) };
+    state.rules = {
+      bannedWords: rules.bannedWords,
+      sheetNameRe: new RegExp(rules.sheetNamePattern),
+      classNameRe: new RegExp(rules.classNamePattern),
+      forbiddenPrefixes: rules.forbiddenPrefixes,
+    };
     setProject(await api('GET', '/api/project/new'), '');
   } catch (e) {
     toast(e.message, true);
