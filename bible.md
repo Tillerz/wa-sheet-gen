@@ -271,7 +271,7 @@ Runs on export and on demand (a "Check" button), with a list of problems that li
 - The console window stays open while the app runs. Closing it quits the app.
 - Generation and validation run in Go and are covered by unit tests with golden files (expected output files).
 - File access (open, save, export) goes through the Go server. The UI shows a simple folder browser.
-- **Build** (from WSL/Linux): `GOOS=windows GOARCH=amd64 go build -o wa-sheet-gen.exe ./source`.
+- **Build** (from WSL/Linux, inside `source/`): `GOOS=windows GOARCH=amd64 go build -o ../wa-sheet-gen.exe .`
 - **Bootstrap 5.0.1**, the version WA uses. The canvas uses an embedded copy of `https://cdn.jsdelivr.net/npm/bootstrap@5.0.1/dist/css/bootstrap.min.css` (CSS only, no Bootstrap JavaScript). It is downloaded once during development and stored in the repo. The app makes no network calls at runtime, except loading font URLs on the canvas.
 
 ## 11. Version 2: lists

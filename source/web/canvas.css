@@ -1,0 +1,34 @@
+/* Editor-only helpers inside the canvas. Never exported. */
+body {
+  background: #ffffff;
+  padding: 16px;
+}
+
+#sheet > .container-fluid {
+  min-height: 120px;
+  outline: 1px dashed #8a94a6;
+  padding: 12px;
+}
+
+#sheet .row {
+  outline: 1px dashed #6b8cce;
+  min-height: 48px;
+  margin: 4px 0;
+}
+
+#sheet [class^="col"], #sheet [class*=" col"] {
+  outline: 1px dashed #c08bd0;
+  min-height: 40px;
+  padding: 6px;
+}
+
+#sheet .lbl {
+  font-size: 12px;
+  text-transform: uppercase;
+  opacity: 0.7;
+}
+
+#sheet .var {
+  min-height: 1.5em;
+  border-bottom: 1px solid #d0d5dd;
+}

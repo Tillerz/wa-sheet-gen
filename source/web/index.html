@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>WA Sheet Generator</title>
+  <link rel="stylesheet" href="app.css">
+</head>
+<body>
+  <header class="topbar">
+    <div class="brand">WA Sheet Generator</div>
+    <nav class="actions">
+      <button id="btnNew" type="button">New</button>
+      <button id="btnOpen" type="button">Open…</button>
+      <button id="btnSave" type="button" class="primary">Save</button>
+      <button id="btnSaveAs" type="button">Save as…</button>
+    </nav>
+    <div class="doc-title" id="docTitle"></div>
+  </header>
+
+  <main class="workspace">
+    <section class="canvas-wrap">
+      <iframe id="canvas" src="canvas.html" title="Sheet canvas"></iframe>
+    </section>
+    <aside class="panel">
+      <h2>Sheet</h2>
+      <label class="field">
+        <span>Sheet name</span>
+        <input id="sheetName" type="text" spellcheck="false" autocomplete="off">
+      </label>
+      <p class="error" id="sheetNameErr"></p>
+      <p class="hint">Root class: <code id="rootClass"></code></p>
+
+      <h2>Project folder</h2>
+      <p class="path" id="folderPath"></p>
+    </aside>
+  </main>
+
+  <dialog id="folderDlg">
+    <div class="dlg">
+      <h3 id="dlgTitle"></h3>
+      <div class="dlg-path">
+        <button type="button" id="dlgUp" title="Up one folder">↑</button>
+        <input id="dlgPath" type="text" spellcheck="false">
+      </div>
+      <div class="dlg-drives" id="dlgDrives"></div>
+      <ul class="dlg-list" id="dlgList"></ul>
+      <label class="field" id="dlgNewWrap">
+        <span>New folder name (optional)</span>
+        <input id="dlgNew" type="text" spellcheck="false" autocomplete="off">
+      </label>
+      <p class="hint" id="dlgHint"></p>
+      <div class="dlg-buttons">
+        <button type="button" id="dlgCancel">Cancel</button>
+        <button type="button" id="dlgOk" class="primary"></button>
+      </div>
+    </div>
+  </dialog>
+
+  <div id="toast" role="status"></div>
+
+  <script type="module" src="app.js"></script>
+</body>
+</html>
