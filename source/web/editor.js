@@ -83,7 +83,14 @@ export function createEditor({ iframe, getProject, onChange, onSelect, openMenu,
     if (!fixedTypes.has(node.type)) el.draggable = true;
   }
 
-  function placeholder(p) {
+  function placeholder(node) {
+    const p = node.props || {};
+    if (p.fieldType === 'string' && p.preset && p.preset.length) {
+      // Counted by entry number: the card of entries 11–20 starts with value 11.
+      const list = T.listOf(root(), node.id);
+      const first = list ? T.listRange(list)[0] : 1;
+      return `${p.preset[first - 1] || '(no value)'} …`;
+    }
     switch (p.fieldType) {
       case 'number': return '0';
       case 'text': return 'Long text …';
@@ -106,7 +113,7 @@ export function createEditor({ iframe, getProject, onChange, onSelect, openMenu,
     }
     const val = doc.createElement('span');
     val.className = `ed-ph var var-${cls}`;
-    val.textContent = p.placeholder || placeholder(p);
+    val.textContent = p.placeholder || placeholder(node);
     return [lbl, val];
   }
 

@@ -70,3 +70,28 @@ func TestPreviewExpandsLists(t *testing.T) {
 		t.Errorf("loop code left in the form preview")
 	}
 }
+
+func TestPresetValues(t *testing.T) {
+	sheet, form := previewHTML(loadTestProject(t, "full.project.json"))
+	for _, want := range []string{
+		"<div class='var var-skill-name'>Arcana</div>",
+		"<div class='var var-skill-name'>Rogue&#39;s Lore</div>",
+		"<div class='var var-weapon'>Sword</div>",
+		"<div class='var var-weapon'>Bow</div>",
+	} {
+		if !strings.Contains(sheet, want) {
+			t.Errorf("sheet misses %q", want)
+		}
+	}
+	for _, want := range []string{
+		"<div class='ivar ivar-skill-name'>Stealth</div>",
+		"value='Sword' class='form-control ivar ivar-weapon' id='weapon_001'",
+	} {
+		if !strings.Contains(form, want) {
+			t.Errorf("form misses %q", want)
+		}
+	}
+	if strings.Contains(form, "name='skill_name") {
+		t.Errorf("a preset-only field must have no input")
+	}
+}

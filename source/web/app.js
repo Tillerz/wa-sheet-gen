@@ -679,6 +679,17 @@ function usedNamesExcept(node) {
   return used;
 }
 
+// sameListFields lists node and the fields with the same name in other lists: the cards of
+// a list split over several cards. They share their preset values.
+function sameListFields(node) {
+  const root = state.project.root;
+  const out = [];
+  T.walk(root, (n) => {
+    if (n.type === 'field' && n.props.name === node.props.name && (n === node || T.listOf(root, n.id))) out.push(n);
+  });
+  return out;
+}
+
 // setFieldLabel changes a field's label. While the name still follows the label,
 // the name follows the new label too (if that name is valid and free).
 function setFieldLabel(node, label) {
@@ -807,6 +818,46 @@ function fieldPanel(node, out) {
       },
     });
     out.push(labeled('Placeholder', ph));
+  }
+
+  // Preset values: string fields in lists can take one value per entry (e.g. skill names).
+  if (p.fieldType === 'string' && T.listOf(state.project.root, node.id)) {
+    const editable = h('input', {
+      type: 'checkbox', checked: !!p.editable,
+      onchange: () => {
+        for (const f of sameListFields(node)) {
+          if (editable.checked) f.props.editable = true;
+          else delete f.props.editable;
+        }
+        count.textContent = presetHint();
+        changed();
+      },
+    });
+    const editWrap = h('label', { class: 'check' }, editable, h('span', { textContent: 'Editable by the user (else shown as plain text)' }));
+    const vals = h('textarea', {
+      rows: 3, value: (p.preset || []).join(', '), placeholder: 'e.g. Arcana, Examination, Finesse',
+      oninput: () => {
+        const list = vals.value.split(',').map((x) => x.trim()).filter(Boolean);
+        // A list split over cards shares its values: same field name in other lists.
+        for (const f of sameListFields(node)) {
+          if (list.length) f.props.preset = [...list];
+          else delete f.props.preset;
+        }
+        editWrap.hidden = !list.length;
+        count.textContent = presetHint();
+        changed();
+      },
+    });
+    const presetHint = () => {
+      const n = (p.preset || []).length;
+      if (!n) return 'One value per list entry, comma separated, counted by entry number: entry 11 takes value 11 (also on a second card). Leave empty for a normal input.';
+      const [a, b] = T.listRange(T.listOf(state.project.root, node.id));
+      const shared = sameListFields(node).length > 1 ? ` Shared with ${sameListFields(node).length - 1} other card(s) of this list.` : '';
+      return `${n} values; this card shows values ${a}–${b}${n < b ? ' (missing ones stay empty)' : ''}.${shared} ${p.editable ? 'The form shows an input, filled with the value.' : 'Sheet and form show the text; nothing is saved on WA.'}`;
+    };
+    const count = h('p', { class: 'hint', textContent: presetHint() });
+    editWrap.hidden = !(p.preset || []).length;
+    out.push(labeled('Preset values (comma separated)', vals), editWrap, count);
   }
 
   const parent = T.find(state.project.root, node.id).parent;

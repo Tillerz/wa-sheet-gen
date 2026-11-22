@@ -407,6 +407,26 @@
                     },
                     "children": [
                       {
+                        "id": "n91",
+                        "type": "td",
+                        "children": [
+                          {
+                            "id": "n92",
+                            "type": "field",
+                            "props": {
+                              "fieldType": "string",
+                              "name": "skill_name",
+                              "label": "",
+                              "preset": [
+                                "Arcana",
+                                "Rogue's Lore",
+                                "Stealth"
+                              ]
+                            }
+                          }
+                        ]
+                      },
+                      {
                         "id": "n67",
                         "type": "th",
                         "children": [
@@ -499,7 +519,12 @@
                             "props": {
                               "fieldType": "string",
                               "name": "weapon",
-                              "label": "Weapon"
+                              "label": "Weapon",
+                              "preset": [
+                                "Sword",
+                                "Bow"
+                              ],
+                              "editable": true
                             }
                           }
                         ]

@@ -62,9 +62,13 @@
           <th>Skill</th>
           <th>Rank</th>
         </tr>
+        {% set preset_skill_name = ['Arcana', 'Rogue\'s Lore', 'Stealth'] %}
         {% for i in 1..3 %}
           {% set id = i %}{% if id < 10 %}{% set id = '0' ~ id %}{% endif %}{% if id < 100 %}{% set id = '0' ~ id %}{% endif %}
           <tr>
+            <td>
+              <div class='var var-skill-name'>{{preset_skill_name[i - 1]|default}}</div>
+            </td>
             <th>
               <div class='lbl lbl-skill'>skill</div>
             </th>
@@ -81,11 +85,12 @@
           </th>
           <th>Damage</th>
         </tr>
+        {% set preset_weapon = ['Sword', 'Bow'] %}
         {% for i in 1..2 %}
           {% set id = i %}{% if id < 10 %}{% set id = '0' ~ id %}{% endif %}{% if id < 100 %}{% set id = '0' ~ id %}{% endif %}
           <tr>
             <td>
-              <div class='var var-weapon'>{{attribute(variables, 'weapon_' ~ id)|default}}</div>
+              <div class='var var-weapon'>{{attribute(variables, 'weapon_' ~ id)|default(preset_weapon[i - 1]|default)}}</div>
             </td>
             <td>
               <div class='var var-damage'>{{attribute(variables, 'damage_' ~ id)|default}}</div>

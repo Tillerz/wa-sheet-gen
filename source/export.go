@@ -78,13 +78,33 @@ func fieldClass(name string) string { return strings.ReplaceAll(name, "_", "-") 
 func genApprovedCSS(p *Project) string {
 	var b strings.Builder
 	b.WriteString(cssHeader)
-	for _, f := range p.Fonts {
+	for _, f := range sheetFonts(p) {
 		fmt.Fprintf(&b, "@font-face {\n  font-family: %s;\n  font-style: normal;\n  font-weight: 400;\n  src: url(%s)\n}\n", f.Name, f.URL)
 	}
 	if s := strings.TrimSpace(p.CustomCSS.Approved); s != "" {
 		b.WriteString(s + "\n")
 	}
 	return b.String()
+}
+
+// sheetFonts: the project's fonts plus the library fonts its theme uses (once each).
+func sheetFonts(p *Project) []Font {
+	fonts := append([]Font{}, p.Fonts...)
+	have := map[string]bool{}
+	for _, f := range fonts {
+		have[f.Name] = true
+	}
+	if t := findTheme(p.Theme); t != nil {
+		for _, name := range t.Fonts {
+			for _, lf := range fontLibrary {
+				if lf.Name == name && !have[name] {
+					fonts = append(fonts, lf)
+					have[name] = true
+				}
+			}
+		}
+	}
+	return fonts
 }
 
 func genStyleCSS(p *Project) string {
@@ -107,6 +127,9 @@ func genYAML(p *Project) string {
 	var b strings.Builder
 	b.WriteString("fields:\n")
 	eachFieldEntry(p.Root, func(n *Node, suffix string) {
+		if suffix != "" && isConstField(n) {
+			return // preset text only, nothing to save
+		}
 		name := propString(n, "name") + suffix
 		// WA lists fields by their YAML label, so an empty label falls back to the name.
 		label := strings.TrimSpace(propString(n, "label"))
@@ -318,6 +341,16 @@ func (g *twigGen) node(n *Node, parent *Node, depth int) {
 	if count := repeatCount(n); count > 1 && !g.loop {
 		// A list (bible 11): the block is written once inside a Twig loop.
 		start := repeatStart(n)
+		// Preset values of fields in this list: one Twig array per field, before the loop.
+		eachField(n, func(f *Node) {
+			if hasPreset(f) {
+				var vals []string
+				for _, v := range propStrings(f, "preset") {
+					vals = append(vals, "'"+twigStr(v)+"'")
+				}
+				g.line(depth, fmt.Sprintf("{%% set preset_%s = [%s] %%}", propString(f, "name"), strings.Join(vals, ", ")))
+			}
+		})
 		g.line(depth, fmt.Sprintf("{%% for i in %d..%d %%}", start, start+count-1))
 		g.line(depth+1, loopIDLine)
 		g.loop = true
@@ -386,7 +419,7 @@ func (g *twigGen) nodeInner(n *Node, parent *Node, depth int) {
 			return
 		}
 		name := propString(f, "name")
-		if g.form && g.inList[f.ID] && !g.loop {
+		if g.form && (g.inList[f.ID] && !g.loop || g.loop && isConstField(f)) {
 			// A header label of a list field sits outside the loop: it belongs to all entries.
 			g.line(depth, fmt.Sprintf("<label class='ilbl ilbl-%s'>%s</label>", fieldClass(name), label))
 		} else if g.form {
@@ -406,7 +439,9 @@ func (g *twigGen) field(n *Node, inCell bool, depth int) {
 	}
 	// Without a label only the value is written.
 	if g.form {
-		if label != "" {
+		if label != "" && g.isConst(n) {
+			g.line(depth, fmt.Sprintf("<div class='ilbl ilbl-%s'>%s</div>", cls, label))
+		} else if label != "" {
 			g.line(depth, fmt.Sprintf("<div class='ilbl ilbl-%s'><label for='%s'>%s</label></div>", cls, g.nameAttr(name), label))
 		}
 		g.line(depth, fmt.Sprintf("<div class='ivar ivar-%s'>%s</div>", cls, g.formInput(n)))
@@ -434,8 +469,33 @@ func (g *twigGen) nameAttr(name string) string {
 	return name
 }
 
+// hasPreset: a string field with preset values (bible 11, preset values in lists).
+func hasPreset(n *Node) bool {
+	return n.Type == "field" && propString(n, "fieldType") == "string" && len(propStrings(n, "preset")) > 0
+}
+
+// isConstField: preset values the user cannot change. Such a field is no WA field: no input,
+// no YAML entry; sheet and form show the preset text.
+func isConstField(n *Node) bool {
+	return hasPreset(n) && !propBool(n, "editable")
+}
+
+func (g *twigGen) isConst(n *Node) bool { return g.loop && isConstField(n) }
+
+// presetExpr is the preset value of the current list entry. It counts by entry number, so a
+// list split over cards (1..10, 11..20, …) shares one list of values: entry 11 takes value 11.
+func (g *twigGen) presetExpr(n *Node) string {
+	return fmt.Sprintf("preset_%s[i - 1]|default", propString(n, "name"))
+}
+
 func (g *twigGen) sheetValue(n *Node) string {
 	v := g.varExpr(propString(n, "name"))
+	if g.loop && hasPreset(n) {
+		if isConstField(n) {
+			return "{{" + g.presetExpr(n) + "}}"
+		}
+		return "{{" + v + "|default(" + g.presetExpr(n) + ")}}"
+	}
 	switch propString(n, "fieldType") {
 	case "text":
 		return "{{" + v + "|default|nl2br}}"
@@ -457,6 +517,12 @@ func (g *twigGen) formInput(n *Node) string {
 		listID += "-{{id}}"
 	}
 	value := "value='{{" + v + "|default}}'"
+	if g.loop && hasPreset(n) {
+		if isConstField(n) {
+			return "{{" + g.presetExpr(n) + "}}"
+		}
+		value = "value='{{" + v + "|default(" + g.presetExpr(n) + ")}}'"
+	}
 	common := fmt.Sprintf("class='form-control ivar ivar-%s' id='%s' name='%s'", cls, name, name)
 	req := ""
 	if propBool(n, "required") {

@@ -64,3 +64,31 @@ func TestFontLibraryPassesChecks(t *testing.T) {
 		t.Errorf("not every font written")
 	}
 }
+
+// Theme fonts must come from the font library and end up in approved.css.
+func TestThemeFonts(t *testing.T) {
+	lib := map[string]bool{}
+	for _, f := range fontLibrary {
+		lib[f.Name] = true
+	}
+	for _, th := range themes {
+		for _, name := range th.Fonts {
+			if !lib[name] {
+				t.Errorf("%s uses %q, which is not in the font library", th.ID, name)
+			}
+			if !strings.Contains(th.HeaderFont+th.BodyFont, name) {
+				t.Errorf("%s lists %q but does not use it", th.ID, name)
+			}
+		}
+	}
+	p := newProject()
+	p.Theme = "elegant-medieval"
+	p.Fonts = []Font{fontLibrary[6]} // IM Fell English SC, already in the sheet: not twice
+	css := genApprovedCSS(p)
+	if strings.Count(css, "font-family: IM Fell English SC;") != 1 || !strings.Contains(css, "font-family: IM Fell Double Pica Roman;") {
+		t.Errorf("approved.css:\n%s", css)
+	}
+	if ps := checkCSS("approved.css", css); len(ps) > 0 {
+		t.Errorf("%s", problemsText(ps))
+	}
+}

@@ -14,7 +14,11 @@ var (
 	twigIfGt0Re = regexp.MustCompile(`(?s)\{% if variables\.([a-z0-9_]+)\|default > 0 %\}(.*?)(?:\{% else %\}(.*?))?\{% endif %\}`)
 	twigIfEqRe  = regexp.MustCompile(`(?s)\{% if variables\.([a-z0-9_]+)\|default == '((?:[^'\\]|\\.)*)' %\}(.*?)\{% endif %\}`)
 	twigNl2brRe = regexp.MustCompile(`\{\{variables\.([a-z0-9_]+)\|default\|nl2br\}\}`)
-	twigVarRe   = regexp.MustCompile(`\{\{variables\.([a-z0-9_]+)(?:\|default)?\}\}`)
+	twigVarRe   = regexp.MustCompile(`\{\{variables\.([a-z0-9_]+)(?:\|default(?:\('((?:[^'\\]|\\.)*)'\))?)?\}\}`)
+	twigStrRe   = regexp.MustCompile(`\{\{'((?:[^'\\]|\\.)*)'\}\}`)
+	presetSetRe = regexp.MustCompile(`(?m)^[ ]*\{% set preset_([a-z0-9_]+) = \[(.*)\] %\}\n`)
+	presetUseRe = regexp.MustCompile(`preset_([a-z0-9_]+)\[i - ([0-9]+)\]\|default`)
+	twigItemRe  = regexp.MustCompile(`'((?:[^'\\]|\\.)*)'`)
 	bbImgRe     = regexp.MustCompile(`\[img:([0-9]+)\]`)
 	twigUnquote = strings.NewReplacer(`\'`, `'`, `\\`, `\`)
 	twigLoopRe  = regexp.MustCompile(`(?s)\{% for i in ([0-9]+)\.\.([0-9]+) %\}\n[ ]*` + regexp.QuoteMeta(loopIDLine) + `\n(.*?)[ ]*\{% endfor %\}\n`)
@@ -25,6 +29,9 @@ var (
 func sampleData(p *Project) map[string]string {
 	vars := map[string]string{}
 	eachFieldEntry(p.Root, func(n *Node, suffix string) {
+		if suffix != "" && hasPreset(n) {
+			return // shows its preset value (editable fields: as the default)
+		}
 		name := propString(n, "name") + suffix
 		label := strings.TrimSpace(propString(n, "label"))
 		if label == "" {
@@ -76,6 +83,15 @@ func isPositive(s string) bool {
 
 // renderPreview fills our generated Twig with vars. Values are HTML-escaped like Twig does.
 func renderPreview(twig string, vars map[string]string) string {
+	// Preset arrays: {% set preset_x = ['a', 'b'] %} (raw Twig strings, still escaped)
+	presets := map[string][]string{}
+	twig = presetSetRe.ReplaceAllStringFunc(twig, func(m string) string {
+		g := presetSetRe.FindStringSubmatch(m)
+		for _, it := range twigItemRe.FindAllStringSubmatch(g[2], -1) {
+			presets[g[1]] = append(presets[g[1]], it[1])
+		}
+		return ""
+	})
 	// Lists: repeat the loop body with id = 001, 002, …
 	out := twigLoopRe.ReplaceAllStringFunc(twig, func(m string) string {
 		g := twigLoopRe.FindStringSubmatch(m)
@@ -85,6 +101,15 @@ func renderPreview(twig string, vars map[string]string) string {
 		for i := from; i <= to; i++ {
 			id := fmt.Sprintf("%03d", i)
 			body := twigAttrRe.ReplaceAllString(g[3], "variables.${1}"+id)
+			// preset_x[i - N]|default → the entry's preset value as a Twig string
+			body = presetUseRe.ReplaceAllStringFunc(body, func(u string) string {
+				pg := presetUseRe.FindStringSubmatch(u)
+				off, _ := strconv.Atoi(pg[2])
+				if k := i - off; k >= 0 && k < len(presets[pg[1]]) {
+					return "'" + presets[pg[1]][k] + "'"
+				}
+				return "''"
+			})
 			b.WriteString(strings.ReplaceAll(body, "{{id}}", id))
 		}
 		return b.String()
@@ -108,7 +133,14 @@ func renderPreview(twig string, vars map[string]string) string {
 		return strings.ReplaceAll(esc(vars[g[1]]), "\n", "<br>\n")
 	})
 	out = twigVarRe.ReplaceAllStringFunc(out, func(m string) string {
-		return esc(vars[twigVarRe.FindStringSubmatch(m)[1]])
+		g := twigVarRe.FindStringSubmatch(m)
+		if v := vars[g[1]]; v != "" {
+			return esc(v)
+		}
+		return esc(twigUnquote.Replace(g[2]))
+	})
+	out = twigStrRe.ReplaceAllStringFunc(out, func(m string) string {
+		return esc(twigUnquote.Replace(twigStrRe.FindStringSubmatch(m)[1]))
 	})
 	// WA turns [img:ID] into the image; the preview shows a box instead.
 	return bbImgRe.ReplaceAllString(out, "<span class='ed-img-ph'>WA image $1</span>")

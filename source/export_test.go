@@ -3,6 +3,7 @@ package main
 import (
 	"encoding/json"
 	"flag"
+	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
@@ -151,6 +152,14 @@ func TestValidationErrors(t *testing.T) {
 		"width on a card": {func(p *Project) {
 			p.Root.Children[0].Children[0].Children[0].Props["fmt"] = map[string]any{"width": 50.0}
 		}, "only table cells"},
+		"preset outside a list": {func(p *Project) {
+			body := p.Root.Children[0].Children[0].Children[0].Children[1]
+			body.Children = append(body.Children, &Node{ID: "x", Type: "field", Props: map[string]any{"fieldType": "string", "name": "s", "label": "s", "preset": []any{"a"}}})
+		}, "only work inside a list"},
+		"preset on a number": {func(p *Project) {
+			p.Root.Children = append(p.Root.Children, &Node{ID: "r", Type: "row", Props: map[string]any{"repeat": 2.0}, Children: []*Node{
+				{ID: "c", Type: "col", Children: []*Node{{ID: "f", Type: "field", Props: map[string]any{"fieldType": "number", "name": "n", "label": "n", "preset": []any{"1"}}}}}}})
+		}, "only string fields"},
 		"bad size": {func(p *Project) {
 			p.Root.Props = map[string]any{"fmt": map[string]any{"size": 500.0}}
 		}, "size must be"},
@@ -282,5 +291,45 @@ func TestSplitListSharesFieldNames(t *testing.T) {
 	p.Root.Children[1].Children[1].Props["repeatStart"] = 15.0
 	if _, ps := buildExport(p); !strings.Contains(problemsText(ps), "\"weapon_015\" is used twice") {
 		t.Errorf("overlap not reported: %s", problemsText(ps))
+	}
+}
+
+func TestPresetFewerValuesIsWarning(t *testing.T) {
+	p := newProject()
+	p.Root.Children = append(p.Root.Children, &Node{ID: "r", Type: "row", Props: map[string]any{"repeat": 3.0}, Children: []*Node{
+		{ID: "c", Type: "col", Children: []*Node{{ID: "f", Type: "field", Props: map[string]any{"fieldType": "string", "name": "s", "label": "s", "preset": []any{"a", "b"}}}}}}})
+	files, ps := buildExport(p)
+	if files == nil || !strings.Contains(problemsText(ps), "warning: field \"s\" has 2 preset values, but its list goes up to entry 3") {
+		t.Errorf("want a warning: %s", problemsText(ps))
+	}
+}
+
+// A list split over three cards shares one list of preset values, counted by entry number.
+func TestPresetSplitList(t *testing.T) {
+	p := newProject()
+	vals := []any{}
+	for i := 1; i <= 30; i++ {
+		vals = append(vals, fmt.Sprintf("Skill %d", i))
+	}
+	card := func(id string, start float64) *Node {
+		return &Node{ID: id, Type: "col", Props: map[string]any{"repeat": 10.0, "repeatStart": start}, Children: []*Node{
+			{ID: id + "f", Type: "field", Props: map[string]any{"fieldType": "string", "name": "skill", "label": "", "preset": vals}}}}
+	}
+	p.Root.Children = append(p.Root.Children, &Node{ID: "r", Type: "row", Children: []*Node{card("a", 1), card("b", 11), card("c", 21)}})
+	files, ps := buildExport(p)
+	if files == nil {
+		t.Fatalf("export: %s", problemsText(ps))
+	}
+	if strings.Contains(files["basic-sheet.html.twig"], "[i - 11]") {
+		t.Errorf("the second card must count by entry number")
+	}
+	sheet, _ := previewHTML(p)
+	for _, want := range []string{">Skill 1<", ">Skill 10<", ">Skill 11<", ">Skill 20<", ">Skill 21<", ">Skill 30<"} {
+		if !strings.Contains(sheet, want) {
+			t.Errorf("preview misses %q", want)
+		}
+	}
+	if strings.Count(sheet, ">Skill 1<") != 1 {
+		t.Errorf("Skill 1 shown more than once")
 	}
 }

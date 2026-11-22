@@ -100,6 +100,7 @@ func validateProject(p *Project) []Problem {
 	eachField(p.Root, func(n *Node) { fieldIDs[n.ID] = true })
 	hasName := false
 	inList := false
+	listCount := 0
 	var walk func(n *Node, parent *Node)
 	walk = func(n *Node, parent *Node) {
 		listHere := false
@@ -119,6 +120,7 @@ func validateProject(p *Project) []Problem {
 		}
 		if listHere {
 			inList = true
+			listCount = repeatStart(n) + int(propNumberOr(n, "repeat", 0)) - 1 // last entry number
 			defer func() { inList = false }()
 		}
 		if parent != nil && !canContain(parent.Type, n.Type) {
@@ -172,6 +174,9 @@ func validateProject(p *Project) []Problem {
 			// Fields in lists may share a name (a list split over several cards);
 			// their numbered WA names are checked for clashes below.
 			ps = append(ps, validateField(n, names, inList)...)
+			if len(propStrings(n, "preset")) > 0 {
+				ps = append(ps, validatePreset(n, inList, listCount)...)
+			}
 			if propBool(n, "required") {
 				if propString(n, "name") != "name" || propString(n, "fieldType") != "string" {
 					ps = append(ps, errorf(n.ID, "only the string field \"name\" can be required"))
@@ -188,9 +193,12 @@ func validateProject(p *Project) []Problem {
 	}
 	walk(p.Root, nil)
 	// Fields in lists become name_001 …: these must not clash with other fields.
-	// seen: WA field name → true if it comes from a list. Plain duplicates are reported above.
+	// seen: WA field name → true if it comes from a list. Preset-only fields have no WA name. Plain duplicates are reported above.
 	seen := map[string]bool{}
 	eachFieldEntry(p.Root, func(n *Node, suffix string) {
+		if suffix != "" && isConstField(n) {
+			return
+		}
 		full := propString(n, "name") + suffix
 		fromList, exists := seen[full]
 		if exists && (suffix != "" || fromList) {
@@ -202,6 +210,29 @@ func validateProject(p *Project) []Problem {
 	})
 	if !hasName {
 		ps = append(ps, errorf("", "the required field \"name\" is missing"))
+	}
+	return ps
+}
+
+// validatePreset checks the preset values of a list field (bible 11).
+func validatePreset(n *Node, inList bool, count int) []Problem {
+	name := propString(n, "name")
+	vals := propStrings(n, "preset")
+	var ps []Problem
+	if propString(n, "fieldType") != "string" {
+		ps = append(ps, errorf(n.ID, "field %q: only string fields can have preset values", name))
+	}
+	if !inList {
+		ps = append(ps, errorf(n.ID, "field %q: preset values only work inside a list", name))
+	}
+	for _, v := range vals {
+		if strings.TrimSpace(v) == "" || strings.ContainsAny(v, "\r\n") {
+			ps = append(ps, errorf(n.ID, "field %q has an empty or multi-line preset value", name))
+			break
+		}
+	}
+	if inList && len(vals) < count {
+		ps = append(ps, warnf(n.ID, "field %q has %d preset values, but its list goes up to entry %d; the rest stay empty", name, len(vals), count))
 	}
 	return ps
 }
@@ -314,6 +345,13 @@ func propNumber(n *Node, k string) (float64, bool) {
 		return float64(v), true
 	}
 	return 0, false
+}
+
+func propNumberOr(n *Node, k string, def float64) float64 {
+	if v, ok := propNumber(n, k); ok {
+		return v
+	}
+	return def
 }
 
 func propStrings(n *Node, k string) []string {
