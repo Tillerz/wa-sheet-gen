@@ -11,10 +11,10 @@ export const allowedChildren = {
   ol: ['li'],
   li: ['text', 'field'],
   table: ['tr'],
-  // A field in a table row becomes two cells: label (th) and value (td).
-  tr: ['th', 'td', 'field'],
-  th: ['text'],
-  td: ['text'],
+  tr: ['th', 'td'],
+  // A field in a table: its label (flabel) sits in a th, the field (value) in the next td.
+  th: ['text', 'field', 'flabel'],
+  td: ['text', 'field', 'flabel'],
 };
 
 export const fieldTypes = ['string', 'number', 'text', 'checkbox', 'select', 'suggest', 'image'];
@@ -39,18 +39,19 @@ export function walk(node, fn) {
   for (const c of node.children || []) walk(c, fn);
 }
 
-function maxId(root) {
+function maxId(node) {
   let max = 0;
-  walk(root, (n) => {
+  walk(node, (n) => {
     const m = /^n(\d+)$/.exec(n.id);
     if (m) max = Math.max(max, Number(m[1]));
   });
   return max;
 }
 
-// idGen returns a function that hands out ids not yet used in root.
-export function idGen(root) {
-  let next = maxId(root) + 1;
+// idGen returns a function that hands out ids not yet used in root
+// (nor in the extra nodes, e.g. one that is being moved or inserted).
+export function idGen(root, ...extra) {
+  let next = Math.max(maxId(root), ...extra.map(maxId)) + 1;
   return () => 'n' + next++;
 }
 
@@ -115,57 +116,84 @@ export function containsRequired(node) {
 }
 
 // insert puts node into parent at index. Throws if the nesting rules forbid it.
+// A field with a label that goes into a table cell is split over two cells (see placeFieldInCell).
 export function insert(root, parentId, index, node) {
   const p = find(root, parentId);
   if (!p) throw new Error('target not found');
   if (!canContain(p.node.type, node.type)) {
     throw new Error(`a ${node.type} cannot go into a ${p.node.type}`);
   }
+  if (node.type === 'field' && isCell(p.node) && hasLabel(node)) {
+    placeFieldInCell(root, p.node, node);
+    return;
+  }
   const kids = (p.node.children ||= []);
   const i = Math.max(0, Math.min(index, kids.length));
   kids.splice(i, 0, node);
-  if (node.type === 'field' && p.node.type === 'tr') fitFieldInRow(p.node, i, cellCount(node));
 }
 
-function isEmptyCell(c) {
-  return !!c && (c.type === 'th' || c.type === 'td')
-    && (c.children || []).every((t) => t.type === 'text' && !(t.props && t.props.text));
+export function isCell(n) {
+  return !!n && (n.type === 'th' || n.type === 'td');
 }
 
-// fitFieldInRow lets the field at index i take the place of up to `need` empty cells
-// next to it (right side first), so the table keeps its number of columns.
-function fitFieldInRow(tr, i, need) {
-  const kids = tr.children;
-  let taken = 0;
-  while (taken < need && isEmptyCell(kids[i + 1])) {
-    kids.splice(i + 1, 1);
-    taken++;
+export function hasLabel(field) {
+  return !!(field.props && String(field.props.label || '').trim());
+}
+
+// placeFieldInCell: the cell becomes a th with the field's label, the next cell
+// (made if missing) becomes a td with the field itself.
+function placeFieldInCell(root, cell, field) {
+  const nextId = idGen(root, field);
+  const row = rowOf(root, cell.id);
+  cell.type = 'th';
+  (cell.children ||= []).push({ id: nextId(), type: 'flabel', props: { field: field.id } });
+  const at = row.children.indexOf(cell) + 1;
+  let next = row.children[at];
+  if (!next) {
+    next = createNode('td', nextId);
+    row.children.splice(at, 0, next);
   }
-  while (taken < need && i > 0 && isEmptyCell(kids[i - 1])) {
-    kids.splice(i - 1, 1);
-    i--;
-    taken++;
+  next.type = 'td';
+  (next.children ||= []).push(field);
+}
+
+// fieldLabels lists the field labels (flabel) that show the label of field id.
+export function fieldLabels(root, fieldId) {
+  const out = [];
+  walk(root, (n) => {
+    if (n.type === 'flabel' && n.props && n.props.field === fieldId) out.push(n);
+  });
+  return out;
+}
+
+function dropFieldLabels(root, fieldIds) {
+  walk(root, (n) => {
+    if (n.children) n.children = n.children.filter((c) => !(c.type === 'flabel' && c.props && fieldIds.has(c.props.field)));
+  });
+}
+
+// addFieldLabel gives a field in a cell its label cell again: the cell before it
+// (made if missing) becomes a th with a field label.
+export function addFieldLabel(root, fieldId) {
+  const n = find(root, fieldId);
+  if (!n || !isCell(n.parent) || fieldLabels(root, fieldId).length) return;
+  const row = rowOf(root, n.parent.id);
+  const at = row.children.indexOf(n.parent);
+  const nextId = idGen(root);
+  let prev = row.children[at - 1];
+  if (!prev) {
+    prev = createNode('th', nextId);
+    row.children.splice(at, 0, prev);
   }
+  prev.type = 'th';
+  (prev.children ||= []).push({ id: nextId(), type: 'flabel', props: { field: fieldId } });
 }
 
-// fixRowCells keeps a table row's width when a field's label is set or cleared.
-// before is cellCount(node) from before the label change.
-export function fixRowCells(root, node, before) {
-  const n = find(root, node.id);
-  if (!n || !n.parent || n.parent.type !== 'tr') return;
-  const after = cellCount(node);
-  if (after < before) n.parent.children.splice(n.index + 1, 0, createNode('td', idGen(root)));
-  else if (after > before) fitFieldInRow(n.parent, n.index, after - before);
-}
-
-// takeOut removes n from its parent. A field leaving a table row leaves its
-// empty cells behind (th + td, or only td without a label). Returns how many cells were added.
-function takeOut(n, nextId) {
+// takeOut removes n from its parent. A field that moves leaves its labels behind
+// no more: they are removed (insert makes a new one in the new cell).
+function takeOut(root, n) {
   n.parent.children.splice(n.index, 1);
-  if (n.node.type !== 'field' || n.parent.type !== 'tr') return 0;
-  const cells = cellCount(n.node) === 2 ? [createNode('th', nextId), createNode('td', nextId)] : [createNode('td', nextId)];
-  n.parent.children.splice(n.index, 0, ...cells);
-  return cells.length;
+  if (n.node.type === 'field') dropFieldLabels(root, new Set([n.node.id]));
 }
 
 // canMove tells whether element id may be moved into parentId.
@@ -182,10 +210,9 @@ export function canMove(root, id, parentId) {
 export function move(root, id, parentId, index) {
   if (!canMove(root, id, parentId)) throw new Error('this move is not allowed');
   const n = find(root, id);
-  const nextId = idGen(root); // before takeOut, so new cells never reuse the moved id
   const sameParent = n.parent.id === parentId;
-  const added = takeOut(n, nextId);
-  const i = sameParent && n.index < index ? index - 1 + added : index;
+  takeOut(root, n);
+  const i = sameParent && n.index < index ? index - 1 : index;
   insert(root, parentId, i, n.node);
 }
 
@@ -196,7 +223,12 @@ export function canRemove(root, id) {
 
 export function remove(root, id) {
   if (!canRemove(root, id)) throw new Error('this element cannot be deleted');
-  takeOut(find(root, id), idGen(root));
+  const n = find(root, id);
+  n.parent.children.splice(n.index, 1);
+  // Labels of removed fields go too.
+  const gone = new Set();
+  walk(n.node, (c) => { if (c.type === 'field') gone.add(c.id); });
+  if (gone.size) dropFieldLabels(root, gone);
 }
 
 // uniqueFieldName adds or increases a numeric suffix: weapon → weapon_2 → weapon_3.
@@ -216,8 +248,11 @@ export function duplicate(root, id) {
   const nextId = idGen(root);
   const used = fieldNames(root);
   const copy = structuredClone(n.node);
+  const newIds = {};
   walk(copy, (c) => {
-    c.id = nextId();
+    const id = nextId();
+    newIds[c.id] = id;
+    c.id = id;
     if (c.type === 'field' && c.props) {
       const name = uniqueFieldName(c.props.name, used);
       used.add(name);
@@ -226,8 +261,11 @@ export function duplicate(root, id) {
       delete c.props.required;
     }
   });
+  // Field labels in the copy point to the copied fields.
+  walk(copy, (c) => {
+    if (c.type === 'flabel' && newIds[c.props.field]) c.props.field = newIds[c.props.field];
+  });
   n.parent.children.splice(n.index + 1, 0, copy);
-  if (copy.type === 'field' && n.parent.type === 'tr') fitFieldInRow(n.parent, n.index + 1, cellCount(copy));
   return copy;
 }
 
@@ -315,21 +353,10 @@ export function createField(root, fieldType, nextId) {
 
 // ---------- tables ----------
 
-// cellCount is how many table cells an element of a row takes: a field with a
-// label takes two (label, value), a field without a label only the value cell.
-export function cellCount(node) {
-  if (node.type !== 'field') return 1;
-  return node.props && String(node.props.label || '').trim() ? 2 : 1;
-}
-
-// tableCols counts the widest row.
+// tableCols counts the cells of the widest row.
 export function tableCols(table) {
   let max = 1;
-  for (const tr of table.children || []) {
-    let n = 0;
-    for (const c of tr.children || []) n += cellCount(c);
-    max = Math.max(max, n);
-  }
+  for (const tr of table.children || []) max = Math.max(max, (tr.children || []).length);
   return max;
 }
 
@@ -365,7 +392,7 @@ export function tableRemoveRow(root, id) {
   const row = rowOf(root, id);
   if (!table || !row || table.children.length < 2) return false;
   if (containsRequired(row)) return false;
-  table.children.splice(table.children.indexOf(row), 1);
+  remove(root, row.id);
   return true;
 }
 
@@ -376,13 +403,14 @@ export function tableAddCol(root, id) {
   for (const tr of table.children) tr.children.push(createNode('td', nextId));
 }
 
-// tableRemoveCol removes the last plain cell of every row. Fields stay.
+// tableRemoveCol removes the last cell of every row. A cell with a field stays.
 export function tableRemoveCol(root, id) {
   const table = tableOf(root, id);
   if (!table || tableCols(table) < 2) return false;
   for (const tr of table.children) {
     const last = tr.children[tr.children.length - 1];
-    if (tr.children.length > 1 && last && (last.type === 'th' || last.type === 'td')) tr.children.pop();
+    const hasField = last && (last.children || []).some((c) => c.type === 'field');
+    if (tr.children.length > 1 && last && !hasField) remove(root, last.id);
   }
   return true;
 }
@@ -419,4 +447,43 @@ export function rowFreeSpace(row, key) {
     line = line + w > 12 ? w : line + w;
   }
   return 12 - line;
+}
+
+// ---------- lists (bible 11) ----------
+
+// repeatTypes can repeat as a list: exported once inside a Twig loop.
+export const repeatTypes = new Set(['row', 'col', 'card', 'tr', 'li']);
+
+export function repeatCount(node) {
+  const r = node.props && Number(node.props.repeat);
+  return r > 1 ? r : 1;
+}
+
+// listProblem tells why node cannot become a list, or ''.
+export function listProblem(root, node) {
+  if (!repeatTypes.has(node.type)) return 'Only rows, cols, cards, table rows and list items can repeat.';
+  if (containsRequired(node)) return 'The name field cannot be inside a list.';
+  let inner = false;
+  walk(node, (c) => { if (c !== node && repeatCount(c) > 1) inner = true; });
+  if (inner) return 'It already holds a list.';
+  for (let n = find(root, node.id); n && n.parent; n = find(root, n.parent.id)) {
+    if (repeatCount(n.parent) > 1) return 'It is inside a list.';
+  }
+  return '';
+}
+
+// setRepeat makes node a list of count entries (2–99), or a normal block (count 1 or empty).
+export function setRepeat(node, count) {
+  node.props ||= {};
+  const n = Math.round(Number(count));
+  if (!n || n < 2) delete node.props.repeat;
+  else node.props.repeat = Math.min(99, n);
+}
+
+// listOf returns the list (node or ancestor) that node is in, or null.
+export function listOf(root, id) {
+  for (let n = find(root, id); n; n = n.parent ? find(root, n.parent.id) : null) {
+    if (repeatCount(n.node) > 1) return n.node;
+  }
+  return null;
 }

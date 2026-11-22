@@ -306,6 +306,10 @@ dialog::backdrop { background: rgba(10, 12, 20, 0.45); }
 .dlg-list .empty { color: var(--muted); cursor: default; }
 .dlg-list .empty::before { content: none; }
 .dlg-buttons { display: flex; justify-content: flex-end; gap: 8px; }
+.dlg-sub { font-size: 12px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.06em; margin-bottom: 4px; }
+.dlg-recent { display: flex; flex-direction: column; gap: 3px; max-height: 150px; overflow-y: auto; }
+.recent-item { display: flex; gap: 10px; align-items: baseline; text-align: left; padding: 5px 10px; }
+.recent-item span { color: var(--muted); font-size: 12px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
 /* Problem list */
 .prob-list {

@@ -6,10 +6,12 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strconv"
+	"strings"
 )
 
 const (
-	projectVersion = 1
+	projectVersion = 2
 	projectFile    = "project.json"
 )
 
@@ -83,7 +85,59 @@ func loadProject(folder string) (*Project, error) {
 	if p.Root == nil || p.Root.Type != "container" {
 		return nil, errors.New(projectFile + " has no sheet root")
 	}
+	if p.Version < 2 {
+		migrateFieldsInRows(p.Root)
+		p.Version = 2
+	}
 	return &p, nil
+}
+
+// migrateFieldsInRows converts version 1 projects: there a field sat directly in a
+// table row and stood for two cells. From version 2 on, the row holds a label cell
+// (th with a field label) and a value cell (td with the field).
+func migrateFieldsInRows(root *Node) {
+	next := maxNodeID(root) + 1
+	newID := func() string {
+		id := fmt.Sprintf("n%d", next)
+		next++
+		return id
+	}
+	var walk func(n *Node)
+	walk = func(n *Node) {
+		if n.Type == "tr" {
+			var cells []*Node
+			for _, c := range n.Children {
+				if c.Type != "field" {
+					cells = append(cells, c)
+					continue
+				}
+				if strings.TrimSpace(propString(c, "label")) != "" {
+					cells = append(cells, &Node{ID: newID(), Type: "th", Children: []*Node{
+						{ID: newID(), Type: "flabel", Props: map[string]any{"field": c.ID}},
+					}})
+				}
+				cells = append(cells, &Node{ID: newID(), Type: "td", Children: []*Node{c}})
+			}
+			n.Children = cells
+		}
+		for _, c := range n.Children {
+			walk(c)
+		}
+	}
+	walk(root)
+}
+
+func maxNodeID(n *Node) int {
+	max := 0
+	if v, err := strconv.Atoi(strings.TrimPrefix(n.ID, "n")); err == nil && strings.HasPrefix(n.ID, "n") {
+		max = v
+	}
+	for _, c := range n.Children {
+		if m := maxNodeID(c); m > max {
+			max = m
+		}
+	}
+	return max
 }
 
 func saveProject(folder string, p *Project) error {

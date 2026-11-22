@@ -42,7 +42,7 @@ func main() {
 		fmt.Println("Could not open the browser:", err)
 	}
 
-	srv := &http.Server{Handler: newServer(token, web), ReadHeaderTimeout: 10 * time.Second}
+	srv := &http.Server{Handler: newServer(token, web, defaultSettingsPath()), ReadHeaderTimeout: 10 * time.Second}
 	log.Fatal(srv.Serve(ln))
 }
 

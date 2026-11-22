@@ -42,9 +42,9 @@ var allowedChildren = map[string][]string{
 	"ol":          {"li"},
 	"li":          {"text", "field"},
 	"table":       {"tr"},
-	"tr":          {"th", "td", "field"},
-	"th":          {"text"},
-	"td":          {"text"},
+	"tr":          {"th", "td"},
+	"th":          {"text", "field", "flabel"},
+	"td":          {"text", "field", "flabel"},
 }
 
 func canContain(parent, child string) bool {
@@ -62,6 +62,9 @@ var fieldTypes = map[string]bool{
 }
 
 var digitsRe = regexp.MustCompile(`^[0-9]+$`)
+
+// repeatTypes can be made into a list (bible 11).
+var repeatTypes = map[string]bool{"row": true, "col": true, "card": true, "tr": true, "li": true}
 
 // fontNameRe allows names that work unquoted in CSS (bible 3.1: no quotes).
 var fontNameRe = regexp.MustCompile(`^[A-Za-z][A-Za-z0-9 -]*$`)
@@ -90,9 +93,29 @@ func validateProject(p *Project) []Problem {
 		fonts[f.Name] = true
 	}
 	names := map[string]string{} // field name → node id
+	fieldIDs := map[string]bool{}
+	eachField(p.Root, func(n *Node) { fieldIDs[n.ID] = true })
 	hasName := false
+	inList := false
 	var walk func(n *Node, parent *Node)
 	walk = func(n *Node, parent *Node) {
+		listHere := false
+		if v, ok := propNumber(n, "repeat"); ok && v != 1 {
+			switch {
+			case !repeatTypes[n.Type]:
+				ps = append(ps, errorf(n.ID, "a %s cannot be a list", n.Type))
+			case v != float64(int(v)) || v < 2 || v > 99:
+				ps = append(ps, errorf(n.ID, "a list repeats 2 to 99 times"))
+			case inList:
+				ps = append(ps, errorf(n.ID, "a list cannot be inside another list"))
+			default:
+				listHere = true
+			}
+		}
+		if listHere {
+			inList = true
+			defer func() { inList = false }()
+		}
 		if parent != nil && !canContain(parent.Type, n.Type) {
 			ps = append(ps, errorf(n.ID, "a %s cannot be inside a %s", n.Type, parent.Type))
 		}
@@ -129,6 +152,10 @@ func validateProject(p *Project) []Problem {
 			if len(n.Children) == 0 {
 				ps = append(ps, warnf(n.ID, "a table has no rows"))
 			}
+		case "flabel":
+			if !fieldIDs[propString(n, "field")] {
+				ps = append(ps, errorf(n.ID, "a field label belongs to a field that no longer exists"))
+			}
 		case "image":
 			if !digitsRe.MatchString(propString(n, "imageId")) {
 				ps = append(ps, errorf(n.ID, "an image has no WA image ID"))
@@ -138,6 +165,8 @@ func validateProject(p *Project) []Problem {
 			if propBool(n, "required") {
 				if propString(n, "name") != "name" || propString(n, "fieldType") != "string" {
 					ps = append(ps, errorf(n.ID, "only the string field \"name\" can be required"))
+				} else if inList {
+					ps = append(ps, errorf(n.ID, "the field \"name\" cannot be inside a list"))
 				} else {
 					hasName = true
 				}
@@ -148,6 +177,19 @@ func validateProject(p *Project) []Problem {
 		}
 	}
 	walk(p.Root, nil)
+	// Fields in lists become name_001 …: these must not clash with other fields.
+	// seen: WA field name → true if it comes from a list. Plain duplicates are reported above.
+	seen := map[string]bool{}
+	eachFieldEntry(p.Root, func(n *Node, suffix string) {
+		full := propString(n, "name") + suffix
+		fromList, exists := seen[full]
+		if exists && (suffix != "" || fromList) {
+			ps = append(ps, errorf(n.ID, "the field name %q is used twice (fields in a list get _001, _002, … on WA)", full))
+		}
+		if !exists {
+			seen[full] = suffix != ""
+		}
+	})
 	if !hasName {
 		ps = append(ps, errorf("", "the required field \"name\" is missing"))
 	}

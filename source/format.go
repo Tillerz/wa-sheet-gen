@@ -19,6 +19,11 @@ var (
 	fieldFmtKeys   = []string{"fmt", "fmtLabel", "fmtInput"}
 	boxTypes       = map[string]bool{"card": true, "card-header": true, "card-body": true, "table": true, "th": true, "td": true}
 	numberFmtLimit = map[string]float64{"size": 200, "borderWidth": 50, "radius": 200}
+	// listStyles per list type (bible 7: bullet shape of ul, numbering of ol).
+	listStyles = map[string]map[string]bool{
+		"ul": {"disc": true, "circle": true, "square": true, "none": true},
+		"ol": {"decimal": true, "decimal-leading-zero": true, "lower-alpha": true, "upper-alpha": true, "lower-roman": true, "upper-roman": true, "none": true},
+	}
 )
 
 func fmtOf(n *Node, key string) map[string]any {
@@ -66,6 +71,9 @@ func validateFmt(n *Node, key string, fonts map[string]bool) []Problem {
 			ps = append(ps, errorf(n.ID, "%s must be 0 to %s px", k, num(limit)))
 		}
 	}
+	if ls := fmtString(m, "listStyle"); ls != "" && !listStyles[n.Type][ls] {
+		ps = append(ps, errorf(n.ID, "list style %q does not fit a %s", ls, n.Type))
+	}
 	if s := fmtString(m, "borderStyle"); s != "" && !borderStyles[s] {
 		ps = append(ps, errorf(n.ID, "unknown border style %q", s))
 	}
@@ -107,6 +115,9 @@ func cssDecls(m map[string]any, box bool) []string {
 	}
 	if f := fmtString(m, "font"); fontNameRe.MatchString(f) {
 		add("font-family", f)
+	}
+	if ls := fmtString(m, "listStyle"); listStyles["ul"][ls] || listStyles["ol"][ls] {
+		add("list-style-type", ls)
 	}
 	if !box {
 		return d

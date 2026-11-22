@@ -22,7 +22,8 @@ export function boxKind(node, look) {
 }
 
 export function canFormat(node) {
-  return node.type !== 'image';
+  // A field label is formatted through its field (Label look).
+  return node.type !== 'image' && node.type !== 'flabel';
 }
 
 function el(tag, attrs = {}, ...children) {
@@ -123,6 +124,18 @@ export function buildFormat({ node, look, setLook, rules, fonts, set, refresh })
   if (m.font && !fonts.includes(m.font)) fontSel.append(el('option', { value: m.font, textContent: `${m.font} (not in font list)` }));
   fontSel.value = m.font || '';
   out.push(row('Font', fontSel));
+
+  if (node.type === 'ul' || node.type === 'ol') {
+    const styles = node.type === 'ul'
+      ? [['disc', '● disc'], ['circle', '○ circle'], ['square', '■ square'], ['none', 'none']]
+      : [['decimal', '1. 2. 3.'], ['decimal-leading-zero', '01. 02.'], ['lower-alpha', 'a. b. c.'], ['upper-alpha', 'A. B. C.'],
+        ['lower-roman', 'i. ii. iii.'], ['upper-roman', 'I. II. III.'], ['none', 'none']];
+    const ls = el('select', { onchange: () => put('listStyle', ls.value) },
+      el('option', { value: '', textContent: '(default)' }),
+      ...styles.map(([v, label]) => el('option', { value: v, textContent: label })));
+    ls.value = m.listStyle || '';
+    out.push(row(node.type === 'ul' ? 'Bullets' : 'Numbers', ls));
+  }
 
   const box = boxKind(node, look);
   if (box !== 'none') {

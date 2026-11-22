@@ -290,9 +290,36 @@ function applyCanvasCss() {
 
 const ui = {
   look: 'fmt', // active field look in the format panel
-  canvasTheme: localStorage.getItem('canvasTheme') || 'dark',
-  outlines: localStorage.getItem('outlines') !== 'off',
+  canvasTheme: 'dark',
+  outlines: true,
 };
+
+// ---------- settings (stored by the server in a file, see settings.go) ----------
+
+const settings = { recent: [], lastFolder: '', canvasTheme: 'dark', outlines: true };
+let settingsTimer;
+
+function saveSettings() {
+  clearTimeout(settingsTimer);
+  settingsTimer = setTimeout(() => api('PUT', '/api/settings', settings).catch(() => {}), 300);
+}
+
+async function loadSettings() {
+  try {
+    Object.assign(settings, await api('GET', '/api/settings'));
+  } catch {
+    // Defaults are fine.
+  }
+  ui.canvasTheme = settings.canvasTheme === 'light' ? 'light' : 'dark';
+  ui.outlines = settings.outlines !== false;
+  applyCanvasTheme();
+}
+
+// addRecent puts folder first in the recent list (at most 8 entries).
+function addRecent(folder) {
+  settings.recent = [folder, ...(settings.recent || []).filter((f) => f !== folder)].slice(0, 8);
+  saveSettings();
+}
 
 function applyCanvasTheme() {
   const doc = canvasDocument();
@@ -307,7 +334,8 @@ function applyCanvasTheme() {
 
 $('btnOutlines').onclick = () => {
   ui.outlines = !ui.outlines;
-  localStorage.setItem('outlines', ui.outlines ? 'on' : 'off');
+  settings.outlines = ui.outlines;
+  saveSettings();
   applyCanvasTheme();
 };
 
@@ -323,7 +351,8 @@ document.querySelectorAll('#viewSwitch button').forEach((b) => {
 
 $('btnTheme').onclick = () => {
   ui.canvasTheme = ui.canvasTheme === 'dark' ? 'light' : 'dark';
-  localStorage.setItem('canvasTheme', ui.canvasTheme);
+  settings.canvasTheme = ui.canvasTheme;
+  saveSettings();
   applyCanvasTheme();
 };
 
@@ -439,7 +468,7 @@ function renderSheetExtras() {
   };
 
   $('sheetExtras').replaceChildren(
-    h('details', { open: p.fonts.length > 0 },
+    h('details', {},
       h('summary', { textContent: `Fonts (${p.fonts.length})` }),
       h('p', { class: 'hint', textContent: 'Each font needs a direct link to a font file (.woff2, .otf, …). It goes into approved.css.' }),
       ...fontRows, addFont,
@@ -511,7 +540,7 @@ const typeNames = {
   container: 'Sheet root', row: 'Row', col: 'Col', card: 'Card',
   'card-header': 'Card header', 'card-body': 'Card body', field: 'Field', text: 'Text',
   ul: 'Bullet list', ol: 'Numbered list', li: 'List item', table: 'Table', tr: 'Table row',
-  th: 'Header cell (th)', td: 'Data cell (td)', image: 'Image',
+  th: 'Header cell (th)', td: 'Data cell (td)', image: 'Image', flabel: 'Field label',
 };
 
 const fieldTypeNames = {
@@ -530,9 +559,7 @@ function usedNamesExcept(node) {
 function setFieldLabel(node, label) {
   const p = node.props;
   const auto = !p.required && p.name === T.toFieldName(p.label || '');
-  const cellsBefore = T.cellCount(node);
   p.label = label;
-  T.fixRowCells(state.project.root, node, cellsBefore);
   if (auto) {
     const name = T.toFieldName(label);
     if (name && !T.fieldNameError(name, state.rules, usedNamesExcept(node))) p.name = name;
@@ -658,14 +685,19 @@ function fieldPanel(node, out) {
   }
 
   const parent = T.find(state.project.root, node.id).parent;
-  if (parent && parent.type === 'tr') {
-    out.push(h('p', { class: 'hint', textContent: 'In a table row this field fills two cells: label (th) and value (td).' }));
+  const list = T.listOf(state.project.root, node.id);
+  if (list) {
+    const r = T.repeatCount(list);
+    out.push(h('p', { class: 'hint', textContent: `In a list: on WA this field is ${p.name}_001 … ${p.name}_${String(r).padStart(3, '0')}.` }));
+  }
+  if (T.isCell(parent)) {
+    out.push(h('p', { class: 'hint', textContent: 'In a table cell the field shows only its input; its label sits in the label cell (th) before it.' }));
   }
   out.push(h('p', { class: 'hint', textContent: 'Tip: double-click the label in the sheet to edit it.' }));
 }
 
 const colWidthKeys = [
-  ['col', 'All sizes', 'col-x'],
+  ['col', 'Small and up', 'col-x'],
   ['md', 'Medium and up', 'col-md-x'],
   ['lg', 'Large and up', 'col-lg-x'],
 ];
@@ -758,11 +790,40 @@ function renderSelection(node) {
     out.push(h('p', { class: 'hint', textContent: 'Upload the image to WA. The ID is the number in its URL.' }));
   }
 
+  if (node.type === 'flabel') {
+    const f = T.find(state.project.root, p.field);
+    out.push(h('p', { class: 'hint', textContent: f
+      ? `Shows the label of the field "${f.node.props.name}". Edit or format it there (Label look).`
+      : 'Its field no longer exists. Delete this label.' }));
+    if (f) out.push(h('div', { class: 'sel-actions' }, h('button', { type: 'button', textContent: 'Select field', onclick: () => editor.select(f.node.id) })));
+  }
+
   if (['table', 'tr', 'th', 'td'].includes(node.type)) {
-    out.push(h('p', { class: 'hint', textContent: 'Right-click for rows, columns and cell type. Drop a field into a row: it fills a label cell and a value cell. Double-click an empty cell to type text.' }));
+    out.push(h('p', { class: 'hint', textContent: 'Right-click for rows, columns and cell type. Drop a field into a cell: that cell becomes the label (th), the next cell holds the input (td). Double-click an empty cell to type text.' }));
   }
   if (['ul', 'ol', 'li'].includes(node.type)) {
     out.push(h('p', { class: 'hint', textContent: 'Right-click to add items. Double-click an empty item to type text. Fields can go into items.' }));
+  }
+
+  if (T.repeatTypes.has(node.type)) {
+    const problem = T.listProblem(state.project.root, node);
+    const r = T.repeatCount(node);
+    const input = h('input', {
+      type: 'number', min: 1, max: 99, value: r > 1 ? r : '', placeholder: 'no list',
+      disabled: !!problem && r < 2,
+      oninput: () => {
+        const v = Number(input.value);
+        if (input.value === '' || (v >= 1 && v <= 99)) {
+          T.setRepeat(node, input.value);
+          changed();
+        }
+      },
+    });
+    out.push(h('h3', { class: 'sub', textContent: 'List' }));
+    out.push(labeled('Repeat (entries)', input));
+    out.push(h('p', { class: 'hint', textContent: problem && r < 2
+      ? problem
+      : 'Exported once inside a Twig loop. Fields inside get _001, _002, … on WA. Empty = no list.' }));
   }
 
   if (canFormat(node)) {
@@ -816,7 +877,10 @@ async function dlgLoad(path) {
   try {
     const listing = await api('GET', '/api/fs/list?path=' + encodeURIComponent(path || ''));
     dlg.listing = listing;
-    localStorage.setItem('lastFolder', listing.path);
+    if (settings.lastFolder !== listing.path) {
+      settings.lastFolder = listing.path;
+      saveSettings();
+    }
     $('dlgPath').value = listing.path;
     $('dlgUp').disabled = !listing.parent;
 
@@ -895,8 +959,31 @@ function pickFolder(mode) {
   $('dlgNewWrap').hidden = mode === 'open';
   $('dlgNew').value = mode === 'save' && !state.folder ? state.project.sheetName : '';
   $('folderDlg').showModal();
-  dlgLoad(state.folder || localStorage.getItem('lastFolder') || '');
+  renderRecent();
+  dlgLoad(state.folder || settings.lastFolder || '');
   return new Promise((resolve) => { dlg.resolve = resolve; });
+}
+
+// renderRecent shows the recently opened or saved sheets. A click goes to that folder.
+function renderRecent() {
+  const items = (settings.recent || []).map((folder) => {
+    const b = document.createElement('button');
+    b.type = 'button';
+    b.className = 'recent-item';
+    b.title = folder;
+    const name = document.createElement('strong');
+    name.textContent = baseName(folder);
+    const path = document.createElement('span');
+    path.textContent = folder;
+    b.append(name, path);
+    b.onclick = () => dlgLoad(folder);
+    b.ondblclick = () => {
+      if (dlg.mode === 'open') dlgLoad(folder).then(() => dlg.listing && dlg.listing.hasProject && dlgClose(folder));
+    };
+    return b;
+  });
+  $('dlgRecentWrap').hidden = !items.length;
+  $('dlgRecent').replaceChildren(...items);
 }
 
 function dlgClose(result) {
@@ -942,6 +1029,7 @@ async function doOpen() {
   if (!folder) return;
   try {
     setProject(await api('POST', '/api/project/open', { folder }), folder);
+    addRecent(folder);
     toast('Opened ' + baseName(folder));
   } catch (e) {
     toast(e.message, true);
@@ -958,6 +1046,7 @@ async function saveTo(folder, quiet = false) {
     historyRecord();
     await api('POST', '/api/project/save', { folder, project: state.project });
     state.folder = folder;
+    addRecent(folder);
     undoHistory.saved = snapshot();
     updateDirty();
     if (!quiet) toast('Saved');
@@ -1086,6 +1175,7 @@ async function start() {
       fontNameRe: new RegExp(rules.fontNamePattern),
       fontURLRe: new RegExp(rules.fontURLPattern),
     };
+    await loadSettings();
     const info = await api('GET', '/api/info');
     $('appVersion').textContent = 'v' + info.version;
     setProject(await api('GET', '/api/project/new'), '');

@@ -21,7 +21,7 @@ func testHandler(t *testing.T) http.Handler {
 	if err != nil {
 		t.Fatal(err)
 	}
-	return newServer(testToken, web)
+	return newServer(testToken, web, filepath.Join(t.TempDir(), "settings.json"))
 }
 
 func do(t *testing.T, h http.Handler, method, target, token string, body any) *httptest.ResponseRecorder {
@@ -213,5 +213,67 @@ func TestFieldNameRules(t *testing.T) {
 		if err := validateFieldName(n); err == nil {
 			t.Errorf("%q: expected an error", n)
 		}
+	}
+}
+
+func TestLoadMigratesFieldsInRows(t *testing.T) {
+	dir := t.TempDir()
+	v1 := `{"version": 1, "sheetName": "old", "root": {"id": "n1", "type": "container", "children": [
+	  {"id": "n2", "type": "row", "children": [{"id": "n3", "type": "col", "children": [
+	    {"id": "n4", "type": "table", "children": [
+	      {"id": "n5", "type": "tr", "children": [
+	        {"id": "n6", "type": "field", "props": {"fieldType": "string", "name": "name", "label": "name", "required": true}},
+	        {"id": "n7", "type": "field", "props": {"fieldType": "string", "name": "x", "label": ""}},
+	        {"id": "n8", "type": "td"}
+	      ]}
+	    ]}
+	  ]}]}
+	]}}`
+	if err := os.WriteFile(filepath.Join(dir, projectFile), []byte(v1), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	p, err := loadProject(dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	tr := p.Root.Children[0].Children[0].Children[0].Children[0]
+	var types []string
+	for _, c := range tr.Children {
+		types = append(types, c.Type)
+	}
+	if strings.Join(types, ",") != "th,td,td,td" {
+		t.Fatalf("cells: %v", types)
+	}
+	lbl := tr.Children[0].Children[0]
+	if lbl.Type != "flabel" || lbl.Props["field"] != "n6" || lbl.ID != "n10" {
+		t.Errorf("label: %+v", lbl)
+	}
+	if tr.Children[1].Children[0].ID != "n6" || tr.Children[2].Children[0].ID != "n7" {
+		t.Errorf("fields not in td")
+	}
+	if p.Version != 2 {
+		t.Errorf("version %d", p.Version)
+	}
+	if files, ps := buildExport(p); files == nil {
+		t.Errorf("migrated project must export: %s", problemsText(ps))
+	}
+}
+
+func TestSettingsRoundTrip(t *testing.T) {
+	h := testHandler(t)
+	rec := do(t, h, "GET", "/api/settings", testToken, nil)
+	if rec.Code != 200 || strings.TrimSpace(rec.Body.String()) != "{}" {
+		t.Fatalf("empty settings: %d %q", rec.Code, rec.Body)
+	}
+	rec = do(t, h, "PUT", "/api/settings", testToken, map[string]any{"recent": []string{"C:\\a"}, "canvasTheme": "light"})
+	if rec.Code != 200 {
+		t.Fatalf("put: %d %s", rec.Code, rec.Body)
+	}
+	rec = do(t, h, "GET", "/api/settings", testToken, nil)
+	if !strings.Contains(rec.Body.String(), `"canvasTheme": "light"`) || !strings.Contains(rec.Body.String(), `C:\\a`) {
+		t.Errorf("get: %s", rec.Body)
+	}
+	if rec := do(t, h, "PUT", "/api/settings", "", map[string]any{}); rec.Code != 401 {
+		t.Errorf("settings need the token: %d", rec.Code)
 	}
 }

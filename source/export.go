@@ -102,16 +102,21 @@ func genStyleCSS(p *Project) string {
 func genYAML(p *Project) string {
 	var b strings.Builder
 	b.WriteString("fields:\n")
-	eachField(p.Root, func(n *Node) {
-		name := propString(n, "name")
+	eachFieldEntry(p.Root, func(n *Node, suffix string) {
+		name := propString(n, "name") + suffix
 		// WA lists fields by their YAML label, so an empty label falls back to the name.
 		label := strings.TrimSpace(propString(n, "label"))
 		if label == "" {
-			label = strings.ReplaceAll(name, "_", " ")
+			label = strings.ReplaceAll(propString(n, "name"), "_", " ")
+		}
+		if suffix != "" {
+			label += " " + suffix[1:]
 		}
 		desc := propString(n, "description")
 		if desc == "" {
 			desc = label
+		} else if suffix != "" {
+			desc += " " + suffix[1:]
 		}
 		fmt.Fprintf(&b, "  %s:\n    label: %s\n", name, yamlStr(label))
 		ft := propString(n, "fieldType")
@@ -152,6 +157,38 @@ func textRows(n *Node) float64 {
 	return 3
 }
 
+// repeatCount is how often a list block repeats (props.repeat), or 1.
+func repeatCount(n *Node) int {
+	if v, ok := propNumber(n, "repeat"); ok && v > 1 {
+		return int(v)
+	}
+	return 1
+}
+
+// eachFieldEntry calls fn once per WA field: a field in a list of N once per entry,
+// with suffix "_001" … ("" outside lists).
+func eachFieldEntry(root *Node, fn func(n *Node, suffix string)) {
+	var walk func(n *Node, count int)
+	walk = func(n *Node, count int) {
+		if c := repeatCount(n); c > 1 {
+			count = c
+		}
+		if n.Type == "field" {
+			if count > 1 {
+				for i := 1; i <= count; i++ {
+					fn(n, fmt.Sprintf("_%03d", i))
+				}
+			} else {
+				fn(n, "")
+			}
+		}
+		for _, c := range n.Children {
+			walk(c, count)
+		}
+	}
+	walk(root, 1)
+}
+
 func eachField(n *Node, fn func(*Node)) {
 	if n.Type == "field" {
 		fn(n)
@@ -168,6 +205,8 @@ type twigGen struct {
 	form    bool
 	sheet   string
 	classes map[string]string // node id → format class (f-N)
+	fields  map[string]*Node  // field node id → field, for field labels
+	loop    bool              // inside a {% for %} list: field names get _{{id}}
 }
 
 // cls returns " f-N" for a formatted element, or "".
@@ -195,7 +234,8 @@ func (g *twigGen) line(depth int, s string) {
 // genTwig writes the view (form=false) or the edit form (form=true).
 func genTwig(p *Project, form bool) string {
 	classes, _ := formatClasses(p)
-	g := &twigGen{form: form, sheet: p.SheetName, classes: classes}
+	g := &twigGen{form: form, sheet: p.SheetName, classes: classes, fields: map[string]*Node{}}
+	eachField(p.Root, func(n *Node) { g.fields[n.ID] = n })
 	g.node(p.Root, nil, 0)
 	return g.b.String()
 }
@@ -248,7 +288,24 @@ func (g *twigGen) block(n *Node, depth int, open, close string) {
 	g.line(depth, close)
 }
 
+// loopIDLine sets id to the zero-padded loop number (001, 002, …), as in the WA examples.
+const loopIDLine = "{% set id = i %}{% if id < 10 %}{% set id = '0' ~ id %}{% endif %}{% if id < 100 %}{% set id = '0' ~ id %}{% endif %}"
+
 func (g *twigGen) node(n *Node, parent *Node, depth int) {
+	if count := repeatCount(n); count > 1 && !g.loop {
+		// A list (bible 11): the block is written once inside a Twig loop.
+		g.line(depth, fmt.Sprintf("{%% for i in 1..%d %%}", count))
+		g.line(depth+1, loopIDLine)
+		g.loop = true
+		g.nodeInner(n, parent, depth+1)
+		g.loop = false
+		g.line(depth, "{% endfor %}")
+		return
+	}
+	g.nodeInner(n, parent, depth)
+}
+
+func (g *twigGen) nodeInner(n *Node, parent *Node, depth int) {
 	switch n.Type {
 	case "container":
 		g.line(depth, fmt.Sprintf("<div class='container-fluid block-%s'>", g.sheet))
@@ -293,34 +350,65 @@ func (g *twigGen) node(n *Node, parent *Node, depth int) {
 		}
 		g.line(depth, img+">")
 	case "field":
-		g.field(n, parent != nil && parent.Type == "tr", depth)
+		// In a table cell a field writes only its value; its label sits in a field label.
+		g.field(n, parent != nil && (parent.Type == "th" || parent.Type == "td"), depth)
+	case "flabel":
+		f := g.fields[propString(n, "field")]
+		if f == nil {
+			return
+		}
+		label := esc(strings.TrimSpace(propString(f, "label")))
+		if label == "" {
+			return
+		}
+		name := propString(f, "name")
+		if g.form {
+			g.line(depth, fmt.Sprintf("<label class='ilbl ilbl-%s' for='%s'>%s</label>", fieldClass(name), g.nameAttr(name), label))
+		} else {
+			g.line(depth, fmt.Sprintf("<div class='lbl lbl-%s'>%s</div>", fieldClass(name), label))
+		}
 	}
 }
 
-func (g *twigGen) field(n *Node, inRow bool, depth int) {
+func (g *twigGen) field(n *Node, inCell bool, depth int) {
 	name := propString(n, "name")
 	cls := fieldClass(name)
 	label := esc(strings.TrimSpace(propString(n, "label")))
-	lblTag, valTag := "div", "div"
-	if inRow {
-		lblTag, valTag = "th", "td"
+	if inCell {
+		label = ""
 	}
-	// Without a label only the value is written (in a table row: only the value cell).
+	// Without a label only the value is written.
 	if g.form {
 		if label != "" {
-			g.line(depth, fmt.Sprintf("<%s class='ilbl ilbl-%s'><label for='%s'>%s</label></%s>", lblTag, cls, name, label, lblTag))
+			g.line(depth, fmt.Sprintf("<div class='ilbl ilbl-%s'><label for='%s'>%s</label></div>", cls, g.nameAttr(name), label))
 		}
-		g.line(depth, fmt.Sprintf("<%s class='ivar ivar-%s'>%s</%s>", valTag, cls, formInput(n), valTag))
+		g.line(depth, fmt.Sprintf("<div class='ivar ivar-%s'>%s</div>", cls, g.formInput(n)))
 		return
 	}
 	if label != "" {
-		g.line(depth, fmt.Sprintf("<%s class='lbl lbl-%s'>%s</%s>", lblTag, cls, label, lblTag))
+		g.line(depth, fmt.Sprintf("<div class='lbl lbl-%s'>%s</div>", cls, label))
 	}
-	g.line(depth, fmt.Sprintf("<%s class='var var-%s'>%s</%s>", valTag, cls, sheetValue(n), valTag))
+	g.line(depth, fmt.Sprintf("<div class='var var-%s'>%s</div>", cls, g.sheetValue(n)))
 }
 
-func sheetValue(n *Node) string {
-	v := "variables." + propString(n, "name")
+// varExpr is the Twig expression of a field value. In a list it is attribute(variables, 'x_' ~ id).
+func (g *twigGen) varExpr(name string) string {
+	if g.loop {
+		return "attribute(variables, '" + name + "_' ~ id)"
+	}
+	return "variables." + name
+}
+
+// nameAttr is the form name (and id) of a field. In a list it is x_{{id}}.
+func (g *twigGen) nameAttr(name string) string {
+	if g.loop {
+		return name + "_{{id}}"
+	}
+	return name
+}
+
+func (g *twigGen) sheetValue(n *Node) string {
+	v := g.varExpr(propString(n, "name"))
 	switch propString(n, "fieldType") {
 	case "text":
 		return "{{" + v + "|default|nl2br}}"
@@ -333,10 +421,14 @@ func sheetValue(n *Node) string {
 	}
 }
 
-func formInput(n *Node) string {
-	name := propString(n, "name")
-	cls := fieldClass(name)
-	v := "variables." + name
+func (g *twigGen) formInput(n *Node) string {
+	cls := fieldClass(propString(n, "name"))
+	v := g.varExpr(propString(n, "name"))
+	name := g.nameAttr(propString(n, "name"))
+	listID := "list-" + cls
+	if g.loop {
+		listID += "-{{id}}"
+	}
 	value := "value='{{" + v + "|default}}'"
 	common := fmt.Sprintf("class='form-control ivar ivar-%s' id='%s' name='%s'", cls, name, name)
 	req := ""
@@ -372,7 +464,7 @@ func formInput(n *Node) string {
 		return b.String()
 	case "suggest":
 		var b strings.Builder
-		fmt.Fprintf(&b, "<input %s list='list-%s' %s type='text'%s /><datalist id='list-%s'>", value, cls, common, ph, cls)
+		fmt.Fprintf(&b, "<input %s list='%s' %s type='text'%s /><datalist id='%s'>", value, listID, common, ph, listID)
 		for _, o := range propStrings(n, "options") {
 			fmt.Fprintf(&b, "<option value='%s'></option>", esc(o))
 		}

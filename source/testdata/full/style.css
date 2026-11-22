@@ -18,9 +18,15 @@
   font-style: italic;
 }
 .block-test-sheet .f-4 {
+  list-style-type: square;
+}
+.block-test-sheet .f-5 {
   text-align: center;
   font-weight: bold;
   color: var(--light) ;
+}
+.block-test-sheet .f-6 {
+  list-style-type: upper-roman;
 }
 .block-test-sheet .lbl-level, .block-test-sheet .ilbl-level {
   text-decoration: underline;

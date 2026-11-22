@@ -5,6 +5,7 @@ import * as T from './tree.js';
 const canvasWidths = { col: '420px', md: '820px', lg: '100%' };
 const fixedTypes = new Set(['container', 'card-header', 'card-body']);
 const tagNames = {
+  flabel: 'span',
   ul: 'ul', ol: 'ol', li: 'li', table: 'table', tr: 'tr', th: 'th', td: 'td', text: 'span',
 };
 // Containers that get a text when you double-click them while empty.
@@ -26,6 +27,11 @@ export function createEditor({ iframe, getProject, onChange, onSelect, openMenu,
   // ---------- rendering ----------
 
   function tagText(node) {
+    const r = T.repeatCount(node);
+    return baseTag(node) + (r > 1 ? ` × ${r} (list)` : '');
+  }
+
+  function baseTag(node) {
     const p = node.props || {};
     switch (node.type) {
       case 'container': return `block-${getProject().sheetName}`;
@@ -38,6 +44,10 @@ export function createEditor({ iframe, getProject, onChange, onSelect, openMenu,
       }
       case 'card': return p.cls ? `card .${p.cls}` : 'card';
       case 'field': return `${p.fieldType} ${p.name}`;
+      case 'flabel': {
+        const f = T.find(root(), p.field);
+        return f ? `label of ${f.node.props.name}` : 'label (field missing)';
+      }
       case 'image': return `image ${p.imageId || '?'}`;
       default: return node.type;
     }
@@ -60,6 +70,7 @@ export function createEditor({ iframe, getProject, onChange, onSelect, openMenu,
   function applyClasses(el, node, extra = []) {
     const f = node.type === 'field' ? '' : getFormatClass(node.id);
     el.className = [...nodeClasses(node), ...extra, ...(f ? [f] : []), 'ed-node'].join(' ');
+    if (T.repeatCount(node) > 1) el.classList.add('ed-repeat');
     if (node.id === selectedId) el.classList.add('ed-selected');
     el.dataset.tag = tagText(node);
   }
@@ -101,21 +112,6 @@ export function createEditor({ iframe, getProject, onChange, onSelect, openMenu,
   function renderNode(node, parentType) {
     const p = node.props || {};
 
-    if (node.type === 'field' && parentType === 'tr') {
-      // A field in a table row is two cells: label (th) and value (td).
-      // Without a label it is only the value cell.
-      const [lbl, val] = fieldParts(node);
-      const pairs = lbl ? [[doc.createElement('th'), lbl], [doc.createElement('td'), val]] : [[doc.createElement('td'), val]];
-      const frag = doc.createDocumentFragment();
-      for (const [cell, part] of pairs) {
-        mark(cell, node);
-        applyClasses(cell, node);
-        cell.append(part);
-        frag.append(cell);
-      }
-      return frag;
-    }
-
     // A text directly in a col or card-body is a block (<div class='txt'>), as in the export.
     const blockText = node.type === 'text' && (parentType === 'col' || parentType === 'card-body');
     const el = doc.createElement(blockText ? 'div' : tagNames[node.type] || 'div');
@@ -129,11 +125,22 @@ export function createEditor({ iframe, getProject, onChange, onSelect, openMenu,
       case 'field': {
         const [lbl, val] = fieldParts(node);
         val.style.display = 'block';
-        if (lbl) {
+        // In a table cell a field shows only its value; the label sits in a field label.
+        if (lbl && parentType !== 'th' && parentType !== 'td') {
           lbl.style.display = 'block';
           el.append(lbl);
         }
         el.append(val);
+        return el;
+      }
+      case 'flabel': {
+        const f = T.find(root(), p.field);
+        const label = f ? String(f.node.props.label || '').trim() : '';
+        const span = doc.createElement('span');
+        span.className = f ? `ed-label lbl lbl-${String(f.node.props.name).replaceAll('_', '-')}` : 'ed-label';
+        span.textContent = label || '(no label)';
+        if (!label) span.classList.add('ed-ph');
+        el.append(span);
         return el;
       }
       case 'image':
@@ -159,7 +166,8 @@ export function createEditor({ iframe, getProject, onChange, onSelect, openMenu,
         el.append(gap);
       }
     }
-    if (node.type === 'col') {
+    if (node.type === 'col' && bp === 'lg') {
+      // Resizing changes the Large width only, so the handle is only shown there.
       const h = doc.createElement('div');
       h.className = 'ed-resize';
       h.title = 'Drag to change the width';
@@ -319,11 +327,12 @@ export function createEditor({ iframe, getProject, onChange, onSelect, openMenu,
   }
 
   // fitNewCol: a new col is col-12 (full width on phones). Dropped into a row with
-  // free space, it also gets the free width for the current screen size.
+  // free space, it also gets the free width on large screens (col-lg-x).
+  // The screen-size switch never changes this: editing always works on the Large layout.
   function fitNewCol(col, row) {
-    const free = T.rowFreeSpace(row, bp);
+    const free = T.rowFreeSpace(row, 'lg');
     if (free <= 0 || free >= 12) return;
-    T.setColWidth(col, bp, free);
+    T.setColWidth(col, 'lg', free);
   }
 
   // startNewDrag takes a palette type: 'row', 'text', … or 'field:<fieldType>'.
@@ -400,8 +409,8 @@ export function createEditor({ iframe, getProject, onChange, onSelect, openMenu,
 
     const onMove = (ev) => {
       const span = Math.max(1, Math.min(12, Math.round((ev.clientX - left) / unit)));
-      if (span !== T.effectiveWidth(node.props, bp)) {
-        T.setColWidth(node, bp, span);
+      if (span !== T.effectiveWidth(node.props, 'lg')) {
+        T.setColWidth(node, 'lg', span);
         applyClasses(colEl, node);
         updateRowGap(colEl.parentElement);
         changed = true;
@@ -510,6 +519,17 @@ export function createEditor({ iframe, getProject, onChange, onSelect, openMenu,
       });
       return;
     }
+    if (node.type === 'flabel') {
+      const f = T.find(root(), node.props.field);
+      const lbl = el.querySelector('.ed-label');
+      if (!f || !lbl) return;
+      if (!String(f.node.props.label || '').trim()) lbl.textContent = '';
+      editText(lbl, (text) => {
+        setFieldLabel(f.node, text);
+        commitChange(node.id);
+      }, () => render());
+      return;
+    }
     if (node.type === 'field') {
       const lbl = e.target.closest('.ed-label') || el.querySelector('.ed-label');
       if (!lbl) return;
@@ -569,19 +589,20 @@ export function createEditor({ iframe, getProject, onChange, onSelect, openMenu,
         action: () => run(() => T.tableRemoveCol(root(), node.id), table.id),
       },
     ];
-    if (node.type === 'th' || node.type === 'td') {
+    // The cell itself, or the cell that holds the clicked text, field or label.
+    const parent = T.find(root(), node.id).parent;
+    const cell = T.isCell(node) ? node : T.isCell(parent) ? parent : null;
+    if (cell) {
       items.push({
-        label: node.type === 'th' ? 'Make data cell (td)' : 'Make header cell (th)',
-        action: () => run(() => T.toggleCell(node), node.id),
+        label: cell.type === 'th' ? 'Make data cell (td)' : 'Make header cell (th)',
+        action: () => run(() => T.toggleCell(cell), node.id),
       });
     }
     return items;
   }
 
   function inTable(node) {
-    if (['table', 'tr', 'th', 'td'].includes(node.type)) return true;
-    const n = T.find(root(), node.id);
-    return node.type === 'field' && n.parent && n.parent.type === 'tr';
+    return !!T.tableOf(root(), node.id);
   }
 
   function inList(node) {
@@ -595,6 +616,24 @@ export function createEditor({ iframe, getProject, onChange, onSelect, openMenu,
     }
     const items = [{ label: 'Format…', action: () => openFormat(node) }, null];
     if (node.type === 'card') items.push(...cardPartItems(node), null);
+    if (node.type === 'field' && T.isCell(T.find(root(), node.id).parent) && T.hasLabel(node)
+        && !T.fieldLabels(root(), node.id).length) {
+      items.push({ label: 'Add label cell', action: () => run(() => T.addFieldLabel(root(), node.id), node.id) });
+    }
+    if (T.repeatTypes.has(node.type)) {
+      const r = T.repeatCount(node);
+      const problem = T.listProblem(root(), node);
+      if (r > 1) {
+        items.push({ label: `List size… (now ${r})`, action: () => askRepeat(node, r) });
+        items.push({ label: 'Stop list', action: () => run(() => T.setRepeat(node, 1), node.id) });
+      } else {
+        items.push({ label: problem ? `Make list… (${problem})` : 'Make list…', disabled: !!problem, action: () => askRepeat(node, 3) });
+      }
+      items.push(null);
+    }
+    if (node.type === 'flabel' && T.find(root(), node.props.field)) {
+      items.push({ label: 'Select field', action: () => select(node.props.field) });
+    }
     if (inTable(node)) items.push(...tableItems(node), null);
     if (inList(node)) items.push({ label: 'Add item', action: () => run(() => T.listAddItem(root(), node.id).id) }, null);
     if (node.id !== root().id) {
@@ -623,6 +662,17 @@ export function createEditor({ iframe, getProject, onChange, onSelect, openMenu,
     if (!items.length) return;
     const r = iframe.getBoundingClientRect();
     openMenu(items, r.left + e.clientX, r.top + e.clientY);
+  }
+
+  function askRepeat(node, current) {
+    const answer = window.prompt('How many entries? (2 to 99)', String(current));
+    if (answer === null) return;
+    const n = Math.round(Number(answer));
+    if (!(n >= 2 && n <= 99)) {
+      window.alert('Please enter a number from 2 to 99.');
+      return;
+    }
+    run(() => T.setRepeat(node, n), node.id);
   }
 
   // ---------- actions ----------

@@ -1,7 +1,9 @@
 package main
 
 import (
+	"fmt"
 	"regexp"
+	"strconv"
 	"strings"
 )
 
@@ -15,16 +17,21 @@ var (
 	twigVarRe   = regexp.MustCompile(`\{\{variables\.([a-z0-9_]+)(?:\|default)?\}\}`)
 	bbImgRe     = regexp.MustCompile(`\[img:([0-9]+)\]`)
 	twigUnquote = strings.NewReplacer(`\'`, `'`, `\\`, `\`)
+	twigLoopRe  = regexp.MustCompile(`(?s)\{% for i in 1\.\.([0-9]+) %\}\n[ ]*` + regexp.QuoteMeta(loopIDLine) + `\n(.*?)[ ]*\{% endfor %\}\n`)
+	twigAttrRe  = regexp.MustCompile(`attribute\(variables, '([a-z0-9_]+)' ~ id\)`)
 )
 
 // sampleData gives every field a value to show in the previews.
 func sampleData(p *Project) map[string]string {
 	vars := map[string]string{}
-	eachField(p.Root, func(n *Node) {
-		name := propString(n, "name")
+	eachFieldEntry(p.Root, func(n *Node, suffix string) {
+		name := propString(n, "name") + suffix
 		label := strings.TrimSpace(propString(n, "label"))
 		if label == "" {
-			label = strings.ReplaceAll(name, "_", " ")
+			label = strings.ReplaceAll(propString(n, "name"), "_", " ")
+		}
+		if suffix != "" {
+			label += " " + strings.TrimLeft(suffix[1:], "0")
 		}
 		switch propString(n, "fieldType") {
 		case "number":
@@ -42,7 +49,12 @@ func sampleData(p *Project) map[string]string {
 			vars[name] = "1"
 		case "select", "suggest":
 			if opts := propStrings(n, "options"); len(opts) > 0 {
-				vars[name] = opts[0]
+				i := 0
+				if suffix != "" { // list entries show different values
+					k, _ := strconv.Atoi(suffix[1:])
+					i = (k - 1) % len(opts)
+				}
+				vars[name] = opts[i]
 			}
 		case "image":
 			vars[name] = "1234"
@@ -64,7 +76,19 @@ func isPositive(s string) bool {
 
 // renderPreview fills our generated Twig with vars. Values are HTML-escaped like Twig does.
 func renderPreview(twig string, vars map[string]string) string {
-	out := twigIfGt0Re.ReplaceAllStringFunc(twig, func(m string) string {
+	// Lists: repeat the loop body with id = 001, 002, …
+	out := twigLoopRe.ReplaceAllStringFunc(twig, func(m string) string {
+		g := twigLoopRe.FindStringSubmatch(m)
+		count, _ := strconv.Atoi(g[1])
+		var b strings.Builder
+		for i := 1; i <= count; i++ {
+			id := fmt.Sprintf("%03d", i)
+			body := twigAttrRe.ReplaceAllString(g[2], "variables.${1}"+id)
+			b.WriteString(strings.ReplaceAll(body, "{{id}}", id))
+		}
+		return b.String()
+	})
+	out = twigIfGt0Re.ReplaceAllStringFunc(out, func(m string) string {
 		g := twigIfGt0Re.FindStringSubmatch(m)
 		if isPositive(vars[g[1]]) {
 			return g[2]

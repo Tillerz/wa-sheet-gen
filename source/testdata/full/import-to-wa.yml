@@ -44,3 +44,45 @@ fields:
     label: "gear"
     input: string
     description: "gear"
+  skill_001:
+    label: "skill 001"
+    input: integer
+    description: "skill 001"
+  skill_002:
+    label: "skill 002"
+    input: integer
+    description: "skill 002"
+  skill_003:
+    label: "skill 003"
+    input: integer
+    description: "skill 003"
+  wound_001:
+    label: "wound 001"
+    input: checkbox
+    description: "wound 001"
+  wound_002:
+    label: "wound 002"
+    input: checkbox
+    description: "wound 002"
+  trait_001:
+    label: "trait 001"
+    input: string
+    description: "trait 001"
+  trait_002:
+    label: "trait 002"
+    input: string
+    description: "trait 002"
+  size_001:
+    label: "size 001"
+    input: select
+    description: "size 001"
+    options:
+      "1H": "1H"
+      "2H": "2H"
+  size_002:
+    label: "size 002"
+    input: select
+    description: "size 002"
+    options:
+      "1H": "1H"
+      "2H": "2H"

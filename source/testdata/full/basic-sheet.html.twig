@@ -6,17 +6,27 @@
         <div class='card-body'>
           <table class='table'>
             <tr>
-              <th class='lbl lbl-name'>name</th>
-              <td class='var var-name'>{{variables.name|default}}</td>
+              <th>
+                <div class='lbl lbl-name'>name</div>
+              </th>
+              <td>
+                <div class='var var-name'>{{variables.name|default}}</div>
+              </td>
             </tr>
             <tr>
-              <th class='lbl lbl-level'>Level</th>
-              <td class='var var-level'>{{variables.level|default}}</td>
+              <th>
+                <div class='lbl lbl-level'>Level</div>
+              </th>
+              <td>
+                <div class='var var-level'>{{variables.level|default}}</div>
+              </td>
             </tr>
             <tr>
               <th><span class='f-3'>plain</span></th>
               <td></td>
-              <td class='var var-note'>{{variables.note|default}}</td>
+              <td>
+                <div class='var var-note'>{{variables.note|default}}</div>
+              </td>
             </tr>
           </table>
         </div>
@@ -37,16 +47,48 @@
       <div class='var var-portrait'>{% if variables.portrait|default > 0 %}[img:{{variables.portrait}}]{% endif %}</div>
     </div>
     <div class='col'>
-      <ul>
-        <li class='f-4'><span class='f-3'>Item</span></li>
+      <ul class='f-4'>
+        <li class='f-5'><span class='f-3'>Item</span></li>
         <li>
           <div class='lbl lbl-gear'>gear</div>
           <div class='var var-gear'>{{variables.gear|default}}</div>
         </li>
       </ul>
-      <ol>
+      <ol class='f-6'>
         <li>First</li>
       </ol>
+      <table class='table'>
+        <tr>
+          <th>Skill</th>
+          <th>Rank</th>
+        </tr>
+        {% for i in 1..3 %}
+          {% set id = i %}{% if id < 10 %}{% set id = '0' ~ id %}{% endif %}{% if id < 100 %}{% set id = '0' ~ id %}{% endif %}
+          <tr>
+            <th>
+              <div class='lbl lbl-skill'>skill</div>
+            </th>
+            <td>
+              <div class='var var-skill'>{{attribute(variables, 'skill_' ~ id)|default}}</div>
+            </td>
+          </tr>
+        {% endfor %}
+      </table>
     </div>
+    {% for i in 1..2 %}
+      {% set id = i %}{% if id < 10 %}{% set id = '0' ~ id %}{% endif %}{% if id < 100 %}{% set id = '0' ~ id %}{% endif %}
+      <div class='col-12 col-lg-6'>
+        <div class='card'>
+          <div class='card-body'>
+            <div class='lbl lbl-wound'>wound</div>
+            <div class='var var-wound'>{% if attribute(variables, 'wound_' ~ id)|default > 0 %}<i class='fa-regular fa-square-check'></i>{% else %}<i class='fa-regular fa-square'></i>{% endif %}</div>
+            <div class='lbl lbl-trait'>trait</div>
+            <div class='var var-trait'>{{attribute(variables, 'trait_' ~ id)|default}}</div>
+            <div class='lbl lbl-size'>size</div>
+            <div class='var var-size'>{{attribute(variables, 'size_' ~ id)|default}}</div>
+          </div>
+        </div>
+      </div>
+    {% endfor %}
   </div>
 </div>

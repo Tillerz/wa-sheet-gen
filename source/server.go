@@ -21,8 +21,9 @@ type server struct {
 }
 
 // newServer returns the HTTP handler: the embedded web UI plus the token-protected API.
-func newServer(token string, web fs.FS) http.Handler {
+func newServer(token string, web fs.FS, settingsPath string) http.Handler {
 	s := &server{token: token}
+	settings := &settingsStore{path: settingsPath}
 	api := http.NewServeMux()
 	api.HandleFunc("GET /api/project/new", s.projectNew)
 	api.HandleFunc("POST /api/project/open", s.projectOpen)
@@ -30,6 +31,8 @@ func newServer(token string, web fs.FS) http.Handler {
 	api.HandleFunc("GET /api/fs/list", s.fsList)
 	api.HandleFunc("GET /api/rules", s.rules)
 	api.HandleFunc("GET /api/info", s.info)
+	api.HandleFunc("GET /api/settings", settings.get)
+	api.HandleFunc("PUT /api/settings", settings.put)
 	api.HandleFunc("POST /api/check", s.check)
 	api.HandleFunc("POST /api/preview", s.preview)
 	api.HandleFunc("POST /api/export", s.export)

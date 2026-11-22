@@ -155,19 +155,19 @@ Classes: sheet uses `lbl` / `var`, form uses `ilbl` / `ivar`, plus a per-field c
 | ul / ol | li |
 | li | static text, field |
 | table | tr |
-| tr | th, td, field |
-| th / td | static text |
+| tr | th, td |
+| th / td | static text, field, field label |
 
 - **Static text**: free text, edited by double-click.
 - **Static image**: a fixed WA image, `<img src='/i/<id>/render'>`, as in the nimble and dccarl headers. Optional width in px (`width='350'`).
-- **Field in a table row**: a field dropped into a row fills two cells, the label in `<th>` and the value in `<td>`, as in the examples. It counts as two columns. Single cells hold only static text.
+- **Field in a table** (project version 2): cells always stay normal cells. A field with a label dropped into a cell splits over two cells: that cell becomes a `th` holding a **field label** (an element that shows the field's label), the next cell (made if missing) becomes a `td` holding the field. In a cell the field writes only its input/value. A field without a label goes into the cell as it is. Moving or deleting a field removes its field label; right-click "Add label cell" brings it back. Version 1 projects (field directly in a row) are converted on open.
 
 ### 5.2 Cols
 
-- A new col is always `col-12` (full width on phones). Dropped into a row with free space, it also gets the free width for the current screen size (in the "All sizes" view: `col-x` itself).
+- A new col is always `col-12` (full width on phones). Dropped into a row with free space, it also gets the free width on large screens (`col-lg-x`).
 - Each col has a width per breakpoint: `col-x` (all sizes), `col-md-x`, `col-lg-x`. Values 1–12. Each breakpoint can also be unset.
-- A breakpoint switch in the toolbar (all / md / lg) chooses which width the canvas shows and which width the resize handle changes.
-- Dragging the right edge of a col changes its width in steps of 1, clamped to 1–12.
+- The screen-size switch (Small / Medium / Large) only changes the canvas width, to see how the sheet looks. Editing always works on the Large layout: Large is the default view.
+- Dragging the right edge of a col (only in the Large view) changes `col-lg-x` in steps of 1, clamped to 1–12. `col-x` and `col-md-x` are set in the properties panel.
 
 ### 5.3 Cards
 
@@ -178,7 +178,7 @@ Classes: sheet uses `lbl` / `var`, form uses `ilbl` / `ivar`, plus a per-field c
 ### 5.4 Tables
 
 - New table: 2 × 2, each row one `th` and one `td`.
-- Right-click: add row (below the clicked row), remove row, add column (at the end), remove the last column, toggle a cell between `th` and `td`. Removing a column never removes a field.
+- Right-click: add row (below the clicked row), remove row, add column (at the end), remove the last column, toggle a cell between `th` and `td` (also when right-clicking a text, field or field label inside it). Removing a column never removes a cell that holds a field.
 - A table never goes below 1 × 1.
 
 ## 6. Editor UI
@@ -201,6 +201,8 @@ Classes: sheet uses `lbl` / `var`, form uses `ilbl` / `ivar`, plus a per-field c
 - **Keyboard**: Ctrl+S save, Ctrl+Shift+S save as, Ctrl+Z / Ctrl+Y (Ctrl+Shift+Z) undo / redo, Ctrl+D duplicate, Delete remove, Esc deselect. Not while typing in a text box (except Ctrl+S).
 - **Canvas**: shows the real sheet CSS (made by the same Go code as the export, via `/api/preview`). Dark canvas by default, switchable to light (editor only, not exported). In the canvas, `--dark` is #222222 and `--light` is #f5f5f5; on WA the theme sets them.
 - **Version**: shown next to the app name at the top right; set in `source/version.go`.
+- **Settings** (recent sheets, last folder, canvas theme, outlines) are stored by the server in `%AppData%\wa-sheet-gen\settings.json`, not in the browser: the app gets a new port on every start, and browsers store per port.
+- **Open / Save as** dialog: a "Recent" list of the last 8 sheets (click: go there; double-click in Open: open it).
 - Look: modern, clean, light and dark mode, fast. No external JavaScript libraries.
 - Add mouse-over text to fields
 
@@ -210,6 +212,7 @@ The "Format" section of the properties panel, quick buttons above the canvas (al
 
 - align left / center / right
 - bold, italic, underline
+- bullet shape of a bullet list (disc, circle, square, none) and numbering of a numbered list (1., 01., a., A., i., I., none): `list-style-type`
 - text color (color picker → hex, or WA theme variable `--dark` / `--light`)
 - font size (px)
 - font family (from the sheet's font list)
@@ -298,7 +301,8 @@ Runs on export and on demand (a "Check" button), with a list of problems that li
 
 Sheets often repeat a block, e.g. 10 skills or 4 weapons. Version 2 exports these as a Twig loop around one block, as the examples do, instead of 10 copies.
 
-- Right-click on a container → **Make list** → choose the number of entries.
+- Rows, cols, cards, table rows and list items can be lists: right-click → **Make list…** (or "Repeat" in the properties panel) → number of entries, 2–99. The canvas shows the block once with a "× N" badge; the Sheet and Form previews show all entries.
+- A list cannot be inside another list, and the `name` field cannot be inside a list.
 - The fields inside get numbered names on WA: `weapon_name` → `weapon_name_001` … `weapon_name_004` (3 digits, as in the examples).
 - Twig output, following the examples:
 
@@ -311,11 +315,14 @@ Sheets often repeat a block, e.g. 10 skills or 4 weapons. Version 2 exports thes
 
 - YAML has no loops, so the YAML still lists every entry (`weapon_name_001` … `weapon_name_004`). The app writes these automatically.
 - Changing the number later is one setting in the app: it updates the loop range and the YAML entries.
+- In the form, names, ids and `label for` become `weapon_name_{{id}}`; a suggest field's datalist id becomes `list-weapon-name-{{id}}`, so ids stay unique.
+- YAML labels get the number: `"weapon name 001"`.
+- The checker refuses names that clash with list entries (e.g. a field `hp_002` next to a list field `hp`).
 - Optional per-entry labels from a list (like `skill_list` in nimble) are a later idea.
 
-## 12. Not in version 1
+## 12. Not built yet
 
-- Lists / Twig loops (section 11)
+- Per-entry labels for lists (like `skill_list` in nimble)
 - Importing hand-written WA sheets (8.3)
 - Themes switched by a field (like daggerheart's vivid/dark)
 - Formatting single words inside a text
@@ -337,4 +344,4 @@ Each step ends with a check.
 4. **Export + validation**: generator, validator, golden-file tests. → check: `go test ./...` passes; upload the exported nimble rebuild to WA and confirm sheet and form work.
 5. **Formatting + fonts + custom CSS**: toolbar, borders and backgrounds, generated classes, font list. → check: CSS passes validation; looks right in WA.
 6. **Polish**: previews with sample data, outlines toggle, keyboard shortcuts. (The app follows the Windows light/dark setting.)
-7. **Version 2**: lists (section 11).
+7. **Version 2**: lists (section 11), table cells with field labels, recent sheets, settings file, bullet styles.

@@ -14,8 +14,8 @@ func TestPreviewRendersAllTwig(t *testing.T) {
 		}
 	}
 	checks := map[string]string{
-		"name value":          "<td class='var var-name'>Aria Windwalker</td>",
-		"number in range":     "<td class='var var-level'>3</td>",
+		"name value":          "<div class='var var-name'>Aria Windwalker</div>",
+		"number in range":     "<div class='var var-level'>3</div>",
 		"nl2br":               "second line.",
 		"checkbox checked":    "fa-square-check",
 		"image box":           "<span class='ed-img-ph'>WA image 1234</span>",
@@ -50,5 +50,23 @@ func TestRenderPreviewQuotedOption(t *testing.T) {
 	got = renderPreview(`{% if variables.c|default > 0 %}A{% else %}B{% endif %}`, map[string]string{"c": "0"})
 	if got != "B" {
 		t.Errorf("got %q", got)
+	}
+}
+
+func TestPreviewExpandsLists(t *testing.T) {
+	sheet, form := previewHTML(loadTestProject(t, "full.project.json"))
+	if strings.Count(sheet, "<div class='var var-skill'>3</div>") != 3 {
+		t.Errorf("want 3 skill rows:\n%s", sheet)
+	}
+	if !strings.Contains(sheet, "<div class='var var-size'>2H</div>") {
+		t.Errorf("second list entry should show the second option")
+	}
+	for _, want := range []string{"id='skill_002'", "for='skill_003'", "list='list-trait-002'", "datalist id='list-trait-002'"} {
+		if !strings.Contains(form, want) {
+			t.Errorf("form: missing %q", want)
+		}
+	}
+	if strings.Contains(form, "{{id}}") || strings.Contains(form, "~ id") {
+		t.Errorf("loop code left in the form preview")
 	}
 }

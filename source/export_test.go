@@ -125,6 +125,26 @@ func TestValidationErrors(t *testing.T) {
 		"bad align": {func(p *Project) {
 			p.Root.Props = map[string]any{"fmt": map[string]any{"align": "middle"}}
 		}, "unknown alignment"},
+		"list style on wrong list": {func(p *Project) {
+			col := p.Root.Children[0].Children[0]
+			col.Children = append(col.Children, &Node{ID: "x", Type: "ul", Props: map[string]any{"fmt": map[string]any{"listStyle": "upper-roman"}},
+				Children: []*Node{{ID: "y", Type: "li"}}})
+		}, "does not fit a ul"},
+		"list on a text": {func(p *Project) {
+			p.Root.Children[0].Children[0].Children[0].Children[0].Children[0].Props["repeat"] = 3.0
+		}, "cannot be a list"},
+		"list too long": {func(p *Project) { p.Root.Children[0].Props = map[string]any{"repeat": 120.0} }, "2 to 99"},
+		"list in list": {func(p *Project) {
+			p.Root.Children[0].Props = map[string]any{"repeat": 2.0}
+			p.Root.Children[0].Children[0].Props["repeat"] = 2.0
+		}, "inside another list"},
+		"name in list": {func(p *Project) { p.Root.Children[0].Props = map[string]any{"repeat": 2.0} }, "cannot be inside a list"},
+		"list name clash": {func(p *Project) {
+			body := p.Root.Children[0].Children[0].Children[0].Children[1]
+			body.Children = append(body.Children, &Node{ID: "x", Type: "field", Props: map[string]any{"fieldType": "string", "name": "hp_002", "label": "x"}})
+			p.Root.Children = append(p.Root.Children, &Node{ID: "r", Type: "row", Props: map[string]any{"repeat": 3.0}, Children: []*Node{
+				{ID: "c", Type: "col", Children: []*Node{{ID: "f", Type: "field", Props: map[string]any{"fieldType": "string", "name": "hp", "label": "hp"}}}}}})
+		}, "\"hp_002\" is used twice"},
 		"bad size": {func(p *Project) {
 			p.Root.Props = map[string]any{"fmt": map[string]any{"size": 500.0}}
 		}, "size must be"},

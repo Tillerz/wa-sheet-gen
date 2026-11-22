@@ -1,5 +1,5 @@
 {
-  "version": 1,
+  "version": 2,
   "sheetName": "test-sheet",
   "fonts": [
     {
@@ -73,14 +73,33 @@
                             "type": "tr",
                             "children": [
                               {
-                                "id": "n10",
-                                "type": "field",
-                                "props": {
-                                  "fieldType": "string",
-                                  "name": "name",
-                                  "label": "name",
-                                  "required": true
-                                }
+                                "id": "n51",
+                                "type": "th",
+                                "children": [
+                                  {
+                                    "id": "n52",
+                                    "type": "flabel",
+                                    "props": {
+                                      "field": "n10"
+                                    }
+                                  }
+                                ]
+                              },
+                              {
+                                "id": "n53",
+                                "type": "td",
+                                "children": [
+                                  {
+                                    "id": "n10",
+                                    "type": "field",
+                                    "props": {
+                                      "fieldType": "string",
+                                      "name": "name",
+                                      "label": "name",
+                                      "required": true
+                                    }
+                                  }
+                                ]
                               }
                             ]
                           },
@@ -89,28 +108,47 @@
                             "type": "tr",
                             "children": [
                               {
-                                "id": "n12",
-                                "type": "field",
-                                "props": {
-                                  "fieldType": "number",
-                                  "name": "level",
-                                  "label": "Level",
-                                  "min": 1,
-                                  "max": 20,
-                                  "fmtLabel": {
-                                    "size": 14,
-                                    "underline": true
-                                  },
-                                  "fmt": {
-                                    "align": "right",
-                                    "size": 24
-                                  },
-                                  "fmtInput": {
-                                    "bg": "#ffffff",
-                                    "borderStyle": "dashed"
-                                  },
-                                  "placeholder": "1-20"
-                                }
+                                "id": "n54",
+                                "type": "th",
+                                "children": [
+                                  {
+                                    "id": "n55",
+                                    "type": "flabel",
+                                    "props": {
+                                      "field": "n12"
+                                    }
+                                  }
+                                ]
+                              },
+                              {
+                                "id": "n56",
+                                "type": "td",
+                                "children": [
+                                  {
+                                    "id": "n12",
+                                    "type": "field",
+                                    "props": {
+                                      "fieldType": "number",
+                                      "name": "level",
+                                      "label": "Level",
+                                      "min": 1,
+                                      "max": 20,
+                                      "fmtLabel": {
+                                        "size": 14,
+                                        "underline": true
+                                      },
+                                      "fmt": {
+                                        "align": "right",
+                                        "size": 24
+                                      },
+                                      "fmtInput": {
+                                        "bg": "#ffffff",
+                                        "borderStyle": "dashed"
+                                      },
+                                      "placeholder": "1-20"
+                                    }
+                                  }
+                                ]
                               }
                             ]
                           },
@@ -139,13 +177,19 @@
                                 "type": "td"
                               },
                               {
-                                "id": "n40",
-                                "type": "field",
-                                "props": {
-                                  "fieldType": "string",
-                                  "name": "note",
-                                  "label": ""
-                                }
+                                "id": "n57",
+                                "type": "td",
+                                "children": [
+                                  {
+                                    "id": "n40",
+                                    "type": "field",
+                                    "props": {
+                                      "fieldType": "string",
+                                      "name": "note",
+                                      "label": ""
+                                    }
+                                  }
+                                ]
                               }
                             ]
                           }
@@ -288,7 +332,12 @@
                       }
                     ]
                   }
-                ]
+                ],
+                "props": {
+                  "fmt": {
+                    "listStyle": "square"
+                  }
+                }
               },
               {
                 "id": "n31",
@@ -303,6 +352,145 @@
                         "type": "text",
                         "props": {
                           "text": "First"
+                        }
+                      }
+                    ]
+                  }
+                ],
+                "props": {
+                  "fmt": {
+                    "listStyle": "upper-roman"
+                  }
+                }
+              },
+              {
+                "id": "n60",
+                "type": "table",
+                "children": [
+                  {
+                    "id": "n61",
+                    "type": "tr",
+                    "children": [
+                      {
+                        "id": "n62",
+                        "type": "th",
+                        "children": [
+                          {
+                            "id": "n63",
+                            "type": "text",
+                            "props": {
+                              "text": "Skill"
+                            }
+                          }
+                        ]
+                      },
+                      {
+                        "id": "n64",
+                        "type": "th",
+                        "children": [
+                          {
+                            "id": "n65",
+                            "type": "text",
+                            "props": {
+                              "text": "Rank"
+                            }
+                          }
+                        ]
+                      }
+                    ]
+                  },
+                  {
+                    "id": "n66",
+                    "type": "tr",
+                    "props": {
+                      "repeat": 3
+                    },
+                    "children": [
+                      {
+                        "id": "n67",
+                        "type": "th",
+                        "children": [
+                          {
+                            "id": "n68",
+                            "type": "flabel",
+                            "props": {
+                              "field": "n69"
+                            }
+                          }
+                        ]
+                      },
+                      {
+                        "id": "n70",
+                        "type": "td",
+                        "children": [
+                          {
+                            "id": "n69",
+                            "type": "field",
+                            "props": {
+                              "fieldType": "number",
+                              "name": "skill",
+                              "label": "skill"
+                            }
+                          }
+                        ]
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "id": "n71",
+            "type": "col",
+            "props": {
+              "col": 12,
+              "lg": 6,
+              "repeat": 2
+            },
+            "children": [
+              {
+                "id": "n72",
+                "type": "card",
+                "props": {},
+                "children": [
+                  {
+                    "id": "n73",
+                    "type": "card-body",
+                    "children": [
+                      {
+                        "id": "n74",
+                        "type": "field",
+                        "props": {
+                          "fieldType": "checkbox",
+                          "name": "wound",
+                          "label": "wound"
+                        }
+                      },
+                      {
+                        "id": "n75",
+                        "type": "field",
+                        "props": {
+                          "fieldType": "suggest",
+                          "name": "trait",
+                          "label": "trait",
+                          "options": [
+                            "Brave",
+                            "Sly"
+                          ]
+                        }
+                      },
+                      {
+                        "id": "n76",
+                        "type": "field",
+                        "props": {
+                          "fieldType": "select",
+                          "name": "size",
+                          "label": "size",
+                          "options": [
+                            "1H",
+                            "2H"
+                          ]
                         }
                       }
                     ]

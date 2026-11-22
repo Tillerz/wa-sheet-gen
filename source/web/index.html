@@ -55,8 +55,8 @@
           <button type="button" data-view="sheet">Sheet</button>
           <button type="button" data-view="form">Form</button>
         </div>
-        <div class="segmented" id="bpSwitch" title="Screen size: sets the canvas width and which col width you change">
-          <button type="button" data-bp="col">All sizes</button>
+        <div class="segmented" id="bpSwitch" title="Screen size: only changes how wide the canvas is. Editing always works on the Large layout.">
+          <button type="button" data-bp="col">Small</button>
           <button type="button" data-bp="md">Medium</button>
           <button type="button" data-bp="lg" class="active">Large</button>
         </div>
@@ -101,6 +101,10 @@
         <input id="dlgPath" type="text" spellcheck="false">
       </div>
       <div class="dlg-drives" id="dlgDrives"></div>
+      <div id="dlgRecentWrap" hidden>
+        <div class="dlg-sub">Recent</div>
+        <div class="dlg-recent" id="dlgRecent"></div>
+      </div>
       <ul class="dlg-list" id="dlgList"></ul>
       <label class="field" id="dlgNewWrap">
         <span>New folder name (optional)</span>
