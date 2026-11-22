@@ -71,6 +71,14 @@ func validateFmt(n *Node, key string, fonts map[string]bool) []Problem {
 			ps = append(ps, errorf(n.ID, "%s must be 0 to %s px", k, num(limit)))
 		}
 	}
+	if w, ok := fmtNumber(m, "width"); ok {
+		switch {
+		case n.Type != "th" && n.Type != "td":
+			ps = append(ps, errorf(n.ID, "only table cells have a column width"))
+		case w < 1 || w > 100:
+			ps = append(ps, errorf(n.ID, "a column width is 1 to 100 %%"))
+		}
+	}
 	if ls := fmtString(m, "listStyle"); ls != "" && !listStyles[n.Type][ls] {
 		ps = append(ps, errorf(n.ID, "list style %q does not fit a %s", ls, n.Type))
 	}
@@ -142,6 +150,10 @@ func cssDecls(m map[string]any, box bool) []string {
 	}
 	if v, ok := fmtNumber(m, "radius"); ok && v >= 0 && v <= numberFmtLimit["radius"] {
 		add("border-radius", num(v)+"px")
+	}
+	// Column width of a table cell, in % of the table (allowed: the % is not inside ( )).
+	if v, ok := fmtNumber(m, "width"); ok && v >= 1 && v <= 100 {
+		add("width", num(v)+"%")
 	}
 	return d
 }

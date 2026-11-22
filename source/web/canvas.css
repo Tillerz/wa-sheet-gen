@@ -177,3 +177,15 @@ i.fa-square::before { content: "☐"; font-style: normal; }
   opacity: 0.85;
 }
 body.preview .ed-listmark { display: none; }
+
+/* Column width handle on first-row table cells (editor only) */
+.ed-colresize {
+  position: absolute;
+  top: 0;
+  right: -3px;
+  width: 7px;
+  height: 100%;
+  z-index: 6;
+  cursor: col-resize;
+}
+.ed-node:hover > .ed-colresize, .ed-selected > .ed-colresize { background: rgba(91, 91, 214, 0.45); }

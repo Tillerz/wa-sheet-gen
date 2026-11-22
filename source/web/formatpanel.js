@@ -142,6 +142,10 @@ export function buildFormat({ node, look, setLook, rules, fonts, set, refresh, i
     out.push(row(node.type === 'ul' ? 'Bullets' : 'Numbers', ls));
   }
 
+  if (node.type === 'th' || node.type === 'td') {
+    out.push(row('Column width', numberField(m.width, 1, 100, '% (auto)', (v) => put('width', v))));
+  }
+
   const box = boxKind(node, look);
   if (box !== 'none') {
     out.push(row('Background', colorField(m.bg, rules.colorRe, (v) => put('bg', v))));

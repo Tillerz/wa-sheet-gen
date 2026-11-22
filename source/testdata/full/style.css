@@ -28,6 +28,9 @@
 .block-test-sheet .f-6 {
   list-style-type: upper-roman;
 }
+.block-test-sheet .f-7 {
+  width: 35%;
+}
 .block-test-sheet .lbl-level, .block-test-sheet .ilbl-level {
   text-decoration: underline;
   font-size: 14px;

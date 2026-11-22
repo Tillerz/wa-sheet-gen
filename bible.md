@@ -179,6 +179,7 @@ Classes: sheet uses `lbl` / `var`, form uses `ilbl` / `ivar`, plus a per-field c
 ### 5.4 Tables
 
 - New table: 2 × 2, each row one `th` and one `td`.
+- **Column widths**: drag the right edge of a cell in the table's first row (double-click: automatic), or set "Column width" (%) in the cell's format. Stored as `fmt.width` of that cell and written as a format class (`.block-x .f-3 { width: 30% }`); WA allows `%` outside `( )`. Only table cells take a width.
 - Right-click: add row (below the clicked row), remove row, add column (at the end), remove the last column, toggle a cell between `th` and `td` (also when right-clicking a text, field or field label inside it). Removing a column never removes a cell that holds a field.
 - A table never goes below 1 × 1.
 

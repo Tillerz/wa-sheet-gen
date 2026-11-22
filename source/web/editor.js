@@ -201,6 +201,13 @@ export function createEditor({ iframe, getProject, onChange, onSelect, openMenu,
     }
     doc.getElementById('sheet').replaceChildren(renderNode(root(), null));
     if (selectedId) elsFor(selectedId).forEach((e) => e.classList.add('ed-selected'));
+    // Column width handles on the cells of each table's first row.
+    doc.querySelectorAll('table[data-type=table] > tbody > tr:first-child > :is(th, td)[data-id]').forEach((cell) => {
+      const hnd = doc.createElement('div');
+      hnd.className = 'ed-colresize';
+      hnd.title = 'Drag: column width. Double-click: automatic width.';
+      cell.append(hnd);
+    });
   }
 
   function setMode(m) {
@@ -433,7 +440,46 @@ export function createEditor({ iframe, getProject, onChange, onSelect, openMenu,
 
   // ---------- col resize ----------
 
+  // Column width: drag the right edge of a first-row cell. The width is a % of the table,
+  // stored as the cell's format (fmt.width), so it ends up in style.css like other formats.
+  function colResize(e) {
+    e.preventDefault();
+    e.stopPropagation();
+    const cellEl = e.target.parentElement;
+    const node = T.find(root(), cellEl.dataset.id).node;
+    const tableW = cellEl.closest('table').getBoundingClientRect().width;
+    const left = cellEl.getBoundingClientRect().left;
+    const handle = e.target;
+    handle.setPointerCapture(e.pointerId);
+    resizing = true;
+    let width = null;
+    const onMove = (ev) => {
+      width = Math.max(1, Math.min(100, Math.round(((ev.clientX - left) / tableW) * 100)));
+      cellEl.style.width = `${width}%`; // canvas only, until the drop
+    };
+    const onUp = () => {
+      resizing = false;
+      handle.removeEventListener('pointermove', onMove);
+      handle.removeEventListener('pointerup', onUp);
+      handle.removeEventListener('pointercancel', onUp);
+      if (width !== null) {
+        node.props ||= {};
+        node.props.fmt = { ...(node.props.fmt || {}), width };
+        commitChange(node.id);
+      } else {
+        select(node.id);
+      }
+    };
+    handle.addEventListener('pointermove', onMove);
+    handle.addEventListener('pointerup', onUp);
+    handle.addEventListener('pointercancel', onUp);
+  }
+
   function onPointerDown(e) {
+    if (editable() && e.target.classList.contains('ed-colresize')) {
+      colResize(e);
+      return;
+    }
     if (!editable() || !e.target.classList.contains('ed-resize')) return;
     e.preventDefault();
     e.stopPropagation();
@@ -546,6 +592,15 @@ export function createEditor({ iframe, getProject, onChange, onSelect, openMenu,
 
   function onDblClick(e) {
     if (editing || !editable()) return;
+    if (e.target.classList.contains('ed-colresize')) {
+      const node = T.find(root(), e.target.parentElement.dataset.id).node;
+      if (node.props && node.props.fmt) {
+        delete node.props.fmt.width;
+        if (!Object.keys(node.props.fmt).length) delete node.props.fmt;
+      }
+      commitChange(node.id);
+      return;
+    }
     const el = e.target.closest && e.target.closest('[data-id]');
     if (!el) return;
     const n = T.find(root(), el.dataset.id);

@@ -148,6 +148,9 @@ func TestValidationErrors(t *testing.T) {
 			p.Root.Children = append(p.Root.Children, &Node{ID: "r", Type: "row", Props: map[string]any{"repeat": 3.0}, Children: []*Node{
 				{ID: "c", Type: "col", Children: []*Node{{ID: "f", Type: "field", Props: map[string]any{"fieldType": "string", "name": "hp", "label": "hp"}}}}}})
 		}, "\"hp_002\" is used twice"},
+		"width on a card": {func(p *Project) {
+			p.Root.Children[0].Children[0].Children[0].Props["fmt"] = map[string]any{"width": 50.0}
+		}, "only table cells"},
 		"bad size": {func(p *Project) {
 			p.Root.Props = map[string]any{"fmt": map[string]any{"size": 500.0}}
 		}, "size must be"},

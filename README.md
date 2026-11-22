@@ -12,7 +12,7 @@ You build the sheet visually. The app writes clean Twig, CSS and YAML that pass 
 
 - **Visual editor**: drag rows, cols, cards, tables, lists, texts and images into the sheet. Bootstrap 5 grid with col widths for small, medium and large screens.
 - **All World Anvil field types**: text, number, text area, checkbox, dropdown, text with suggestions, and WA image ID.
-- **Tables made for sheets**: drop a field into a cell, and its label lands in a `th`, its input in the next `td`. Or put all labels on top, in a header row, for skill and weapon tables.
+- **Tables made for sheets**: drop a field into a cell, and its label lands in a `th`, its input in the next `td`. Or put all labels on top, in a header row, for skill and weapon tables. Column widths are set by dragging the header cells.
 - **Lists**: repeat a row, col, card, table row or list item, up to entry 199. It is exported once inside a Twig loop, and fields become `skill_001`, `skill_002`, …, like hand-made WA sheets. Long lists can be split over several cards (1–20, 21–40, 41–60).
 - **Formatting without code**: alignment, bold, italic, underline, colors, font sizes, fonts, borders, radius, backgrounds and bullet styles. Everything goes into CSS classes, so you can still adjust the look in the CSS later.
 - **Themes**: Cozy Fantasy, Elegant Medieval, Druid Grove, Steampunk, Horror, Sci-Fi Space, Sci-Fi Cyberpunk, Clean Modern and Clean Modern (dark), with striped rows in tables and lists. Your own formats and CSS override the theme.
