@@ -812,7 +812,9 @@ function fieldPanel(node, out) {
       },
     });
     out.push(labeled('Dice roll (sheet only, optional)', dice));
-    out.push(h('p', { class: 'hint', textContent: 'The whole [roll:…] code. VALUE is replaced by the value of this field, e.g. [roll:2d20<VALUE|VALUE]. The form shows no roll. No { } quotes or % in it. Errors show when you click Check.' }));
+    out.push(h('p', { class: 'hint' },
+      'The whole [roll:…] code. VALUE is replaced by the value of this field, e.g. [roll:2d20<VALUE|VALUE]. The form shows no roll. No { } quotes or % in it. Errors show when you click Check. How to write rolls: ',
+      h('a', { href: 'https://dice-roller.github.io/documentation/', target: '_blank', rel: 'noopener', textContent: 'dice roller documentation' }), '.'));
   }
 
   if (p.fieldType === 'text') {

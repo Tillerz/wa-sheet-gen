@@ -14,14 +14,16 @@ More in [Screenshots](#screenshots).
 
 - **Visual editor**: drag rows, cols, cards, tables, lists, texts and images into the sheet. Bootstrap 5 grid with col widths for small, medium and large screens.
 - **All World Anvil field types**: text, number, text area, checkbox, dropdown, text with suggestions, and WA image ID.
-- **Tables made for sheets**: drop a field into a cell, and its label lands in a `th`, its input in the next `td`. Or put all labels on top, in a header row, for skill and weapon tables. Column widths are set by dragging the header cells.
+- **Tables made for sheets**: drop a field into a cell, and its label lands in a `th`, its input in the next `td`. Or put all labels on top, in a header row, for skill and weapon tables. Column widths (in % or px) and row heights are set by dragging, with the number shown while you drag. Right-click adds rows above or below and columns left or right.
 - **Lists**: repeat a row, col, card, table row or list item, up to entry 199. It is exported once inside a Twig loop, and fields become `skill_001`, `skill_002`, …, like hand-made WA sheets. Long lists can be split over several cards (1–20, 21–40, 41–60). Preset values give every entry its own text, e.g. skill names, either fixed or as an editable default.
+- **Calculated fields**: a field with a formula, e.g. `@base + skill` or `(strength - 10) // 2`. The sheet shows the result, the form shows nothing, and nothing is saved on World Anvil. A name is the value of that number field (in a list: of the same entry); `@name` is the number field whose label is the text in another field, so each skill in a list can use a different attribute. Works with lists and preset values.
+- **Dice rolls**: a number or calculated field can write a World Anvil `[roll:…]` code in the sheet, e.g. `[roll:1d20+VALUE|+VALUE]` or `[roll:2d20<VALUE|VALUE]`. `VALUE` is replaced by the value of the field (or the calculated result). The rules for the roll itself (keep the highest, exploding dice, success counts, …) are in the [dice roller documentation](https://dice-roller.github.io/documentation/). The roll only works in the sheet, not in the form.
 - **Formatting without code**: alignment, bold, italic, underline, colors, font sizes, fonts, borders, radius, backgrounds and bullet styles. Everything goes into CSS classes, so you can still adjust the look in the CSS later.
-- **Themes**: Cozy Fantasy, Elegant Medieval, Druid Grove, Steampunk, Horror, Sci-Fi Space, Sci-Fi Cyberpunk, Clean Modern, Clean Modern (dark) and Minimal (light/dark), with striped rows in tables and lists. Your own formats and CSS override the theme.
+- **Themes**: Cozy Fantasy, Elegant Medieval, Druid Grove, Steampunk, Horror, Sci-Fi Space, Sci-Fi Cyberpunk, Clean Modern, Clean Modern (dark) and Minimal (light/dark), with striped rows in tables and lists. Your own formats and CSS override the theme. **Minimal (light/dark) is different from the others:** the other themes bring their own fixed colors and fonts, but Minimal keeps World Anvil's own colors and page font. It only adds the card header (`--light` on `--dark`), borders and grey stripes, so the sheet follows World Anvil's light and dark mode switch. Use it when readers should see the sheet in their own mode.
 - **Fonts**: a library of fonts used on World Anvil sheets (one click to add), or your own font file links. They go into `approved.css` and show in the editor too.
 - **Custom CSS**: extra rules for `style.css` and `approved.css`, checked against World Anvil's rules.
 - **Looks like it will on World Anvil**: the editor uses the same Bootstrap version as World Anvil sheets (5.0.1, CSS only) and applies exactly the CSS that the export writes, made by the same code. The **Sheet** and **Form** previews are not a separate imitation: they are the exported Twig files themselves, filled with sample data. What can still differ is what World Anvil adds around the sheet: the site's own styles and theme colors (`--dark`, `--light`), its page font, Font Awesome icons and `[img:…]` images, which the editor only stands in for.
-- **Built-in checks for World Anvil's rules**: no `);`, no quotes or `%` inside `( )` in CSS, no class names starting with `sh` or `py`, no filtered words like `script`, no JavaScript, unique field names. The export stops with a clear list of problems.
+- **Built-in checks for World Anvil's rules**: no `);`, no quotes or `%` inside `( )` in CSS, no commas inside `( )` in `style.css` values (so no `rgba()` or gradients there; use hex colors like `#80808040`, and put gradients into `approved.css`), no class names starting with `sh` or `py`, no filtered words like `script`, no JavaScript, unique field names. The export stops with a clear list of problems.
 - **Comfortable editor**: resizable sidebars, a path bar above the sheet to reach hidden elements (e.g. a table under its cells), a sheet settings panel, numbers while you resize, undo / redo, autosave (nothing is lost on a reload or crash), keyboard shortcuts, recent sheets, light and dark mode.
 - **Small and private**: one program file, no installer, no account, no internet needed (except to load your own font URLs in the preview).
 
@@ -67,9 +69,9 @@ Notes:
 ## Quick start
 
 1. A new sheet starts with a "Personal" card and the required `name` field.
-2. Set the **sheet name** on the right. The root class becomes `block-<sheet-name>`.
+2. Open **Sheet settings…** in the top bar and set the **sheet name**. The root class becomes `block-<sheet-name>`. The theme, fonts and custom CSS are there too.
 3. Drag elements from the left into the sheet. Double-click texts and labels to edit them. Right-click for more actions.
-4. Select an element to change its settings and its format on the right.
+4. Select an element to change its settings and its format on the right. The path above the sheet shows where it sits and selects the elements around it.
 5. Use **Sheet** and **Form** above the canvas to preview.
 6. Click **Export**. The app checks the sheet, saves it, and writes the five files into the sheet's folder.
 7. In World Anvil, paste the files into your sheet template.
@@ -96,9 +98,17 @@ Settings like recent sheets, and the autosave of unsaved work, are stored in `%A
 
 ![Layout Mode](docs/layout.png)
 
+### Sheet Preview
+
+<img alt="Sheet Preview" src="docs/sheet-preview.png" width="75%">
+
+### Form Preview
+
+<img alt="Form Preview" src="docs/form-preview.png" width="75%">
+
 ### Sidebar
 
-<img alt="Sidebar" src="docs/sidebar.png" width="350px">
+<img alt="Sidebar" src="docs/sidebar.png" width="550px">
 
 ### Themes
 
