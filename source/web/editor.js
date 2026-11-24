@@ -216,6 +216,13 @@ export function createEditor({ iframe, getProject, onChange, onSelect, openMenu,
       hnd.title = 'Drag: column width. Double-click: automatic width.';
       cell.append(hnd);
     });
+    // Row height handles on the first cell of each row of every table.
+    doc.querySelectorAll('table[data-type=table] > tbody > tr > :is(th, td)[data-id]:first-child').forEach((cell) => {
+      const hnd = doc.createElement('div');
+      hnd.className = 'ed-rowresize';
+      hnd.title = 'Drag: height of this row. Double-click: automatic height.';
+      cell.append(hnd);
+    });
   }
 
   function setMode(m) {
@@ -446,6 +453,25 @@ export function createEditor({ iframe, getProject, onChange, onSelect, openMenu,
     commitChange(id);
   }
 
+  // ---------- resize badge ----------
+
+  // While a handle is dragged, a small badge next to the pointer shows the number (e.g. 4/12).
+  let badge = null;
+  function showBadge(text, ev) {
+    if (!badge) {
+      badge = doc.createElement('div');
+      badge.className = 'ed-badge';
+      doc.body.append(badge);
+    }
+    badge.textContent = text;
+    badge.style.left = `${ev.clientX + 14}px`;
+    badge.style.top = `${ev.clientY - 28}px`;
+  }
+  function hideBadge() {
+    if (badge) badge.remove();
+    badge = null;
+  }
+
   // ---------- col resize ----------
 
   // Column width: drag the right edge of a first-row cell. The width is a % of the table,
@@ -461,12 +487,19 @@ export function createEditor({ iframe, getProject, onChange, onSelect, openMenu,
     handle.setPointerCapture(e.pointerId);
     resizing = true;
     let width = null;
+    // The unit is the one of the cell's format: % of the table (default) or px.
+    const px = !!(node.props && node.props.fmt && node.props.fmt.widthUnit === 'px');
+    const unit = px ? 'px' : '%';
     const onMove = (ev) => {
-      width = Math.max(1, Math.min(100, Math.round(((ev.clientX - left) / tableW) * 100)));
-      cellEl.style.width = `${width}%`; // canvas only, until the drop
+      width = px
+        ? Math.max(1, Math.min(2000, Math.round(ev.clientX - left)))
+        : Math.max(1, Math.min(100, Math.round(((ev.clientX - left) / tableW) * 100)));
+      cellEl.style.width = `${width}${unit}`; // canvas only, until the drop
+      showBadge(`${width}${unit}`, ev);
     };
     const onUp = () => {
       resizing = false;
+      hideBadge();
       handle.removeEventListener('pointermove', onMove);
       handle.removeEventListener('pointerup', onUp);
       handle.removeEventListener('pointercancel', onUp);
@@ -483,9 +516,53 @@ export function createEditor({ iframe, getProject, onChange, onSelect, openMenu,
     handle.addEventListener('pointercancel', onUp);
   }
 
+  // Row height: drag the bottom edge of the first cell of a row. Every cell of the row gets the
+  // height (a row is as high as its highest cell), stored as the cell's format (fmt.height, px).
+  function rowResize(e) {
+    e.preventDefault();
+    e.stopPropagation();
+    const cellEl = e.target.parentElement;
+    const tr = T.find(root(), cellEl.dataset.id).parent;
+    const top = cellEl.getBoundingClientRect().top;
+    const handle = e.target;
+    handle.setPointerCapture(e.pointerId);
+    resizing = true;
+    let height = null;
+    const rowEls = [...cellEl.parentElement.children].filter((c) => c.dataset && c.dataset.id);
+    const onMove = (ev) => {
+      height = Math.max(1, Math.min(2000, Math.round(ev.clientY - top)));
+      rowEls.forEach((c) => { c.style.height = `${height}px`; }); // canvas only, until the drop
+      showBadge(`${height}px`, ev);
+    };
+    const onUp = () => {
+      resizing = false;
+      hideBadge();
+      handle.removeEventListener('pointermove', onMove);
+      handle.removeEventListener('pointerup', onUp);
+      handle.removeEventListener('pointercancel', onUp);
+      if (height !== null) {
+        for (const c of tr.children) {
+          if (!T.isCell(c)) continue;
+          c.props ||= {};
+          c.props.fmt = { ...(c.props.fmt || {}), height };
+        }
+        commitChange(tr.children[0].id);
+      } else {
+        select(tr.children[0].id);
+      }
+    };
+    handle.addEventListener('pointermove', onMove);
+    handle.addEventListener('pointerup', onUp);
+    handle.addEventListener('pointercancel', onUp);
+  }
+
   function onPointerDown(e) {
     if (editable() && e.target.classList.contains('ed-colresize')) {
       colResize(e);
+      return;
+    }
+    if (editable() && e.target.classList.contains('ed-rowresize')) {
+      rowResize(e);
       return;
     }
     if (!editable() || !e.target.classList.contains('ed-resize')) return;
@@ -500,9 +577,11 @@ export function createEditor({ iframe, getProject, onChange, onSelect, openMenu,
     handle.setPointerCapture(e.pointerId);
     resizing = true;
     let changed = false;
+    showBadge(`${Math.max(1, Math.min(12, Math.round(colEl.getBoundingClientRect().width / unit)))}/12`, e);
 
     const onMove = (ev) => {
       const span = Math.max(1, Math.min(12, Math.round((ev.clientX - left) / unit)));
+      showBadge(`${span}/12`, ev);
       if (span !== T.effectiveWidth(node.props, 'lg')) {
         T.setColWidth(node, 'lg', span);
         applyClasses(colEl, node);
@@ -512,6 +591,7 @@ export function createEditor({ iframe, getProject, onChange, onSelect, openMenu,
     };
     const onUp = () => {
       resizing = false;
+      hideBadge();
       handle.removeEventListener('pointermove', onMove);
       handle.removeEventListener('pointerup', onUp);
       handle.removeEventListener('pointercancel', onUp);
@@ -609,6 +689,17 @@ export function createEditor({ iframe, getProject, onChange, onSelect, openMenu,
       commitChange(node.id);
       return;
     }
+    if (e.target.classList.contains('ed-rowresize')) {
+      const tr = T.find(root(), e.target.parentElement.dataset.id).parent;
+      for (const c of tr.children) {
+        if (c.props && c.props.fmt) {
+          delete c.props.fmt.height;
+          if (!Object.keys(c.props.fmt).length) delete c.props.fmt;
+        }
+      }
+      commitChange(tr.children[0].id);
+      return;
+    }
     const el = e.target.closest && e.target.closest('[data-id]');
     if (!el) return;
     const n = T.find(root(), el.dataset.id);
@@ -679,13 +770,15 @@ export function createEditor({ iframe, getProject, onChange, onSelect, openMenu,
   function tableItems(node) {
     const table = T.tableOf(root(), node.id);
     const items = [
-      { label: 'Add row', action: () => run(() => T.tableAddRow(root(), node.id).id) },
+      { label: 'Add row above', action: () => run(() => T.tableInsertRow(root(), node.id, true).id) },
+      { label: 'Add row below', action: () => run(() => T.tableInsertRow(root(), node.id, false).id) },
       {
         label: 'Remove row',
         disabled: node.type === 'table' || table.children.length < 2,
         action: () => run(() => T.tableRemoveRow(root(), node.id), table.id),
       },
-      { label: 'Add column', action: () => run(() => T.tableAddCol(root(), node.id), table.id) },
+      { label: 'Add column left', action: () => run(() => T.tableInsertCol(root(), node.id, true).id) },
+      { label: 'Add column right', action: () => run(() => T.tableInsertCol(root(), node.id, false).id) },
       T.labelMode(root(), table.id) === 'top'
         ? { label: 'Field labels: left of each field', action: () => run(() => T.setLabelMode(root(), table.id, 'left'), table.id) }
         : { label: 'Field labels: on top (header row)', action: () => run(() => T.setLabelMode(root(), table.id, 'top'), table.id) },

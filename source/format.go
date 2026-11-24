@@ -10,7 +10,11 @@ import (
 // fmt (value in the sheet), fmtLabel (label in sheet and form), fmtInput (input in the form).
 //
 // fmt keys: align (left|center|right), bold, italic, underline (bool), color, bg (color),
-// size (px), font (font name), borderWidth (px), borderStyle, borderColor, radius (px).
+// size (px), font (font name), borderWidth (px), borderStyle, borderColor, radius (px),
+// and for table cells width (% of the table, or px with widthUnit "px") and height (px).
+
+// maxCellPx is the largest width or height of a table cell, in px.
+const maxCellPx = 2000
 
 var (
 	colorRe        = regexp.MustCompile(`^(#[0-9a-fA-F]{3}|#[0-9a-fA-F]{6}|var\(--[a-z][a-z0-9-]*\))$`)
@@ -71,12 +75,25 @@ func validateFmt(n *Node, key string, fonts map[string]bool) []Problem {
 			ps = append(ps, errorf(n.ID, "%s must be 0 to %s px", k, num(limit)))
 		}
 	}
+	if u := fmtString(m, "widthUnit"); u != "" && u != "px" && u != "%" {
+		ps = append(ps, errorf(n.ID, "unknown width unit %q (use px or %%)", u))
+	}
 	if w, ok := fmtNumber(m, "width"); ok {
 		switch {
 		case n.Type != "th" && n.Type != "td":
 			ps = append(ps, errorf(n.ID, "only table cells have a column width"))
-		case w < 1 || w > 100:
+		case fmtString(m, "widthUnit") == "px" && (w < 1 || w > maxCellPx):
+			ps = append(ps, errorf(n.ID, "a column width is 1 to %d px", maxCellPx))
+		case fmtString(m, "widthUnit") != "px" && (w < 1 || w > 100):
 			ps = append(ps, errorf(n.ID, "a column width is 1 to 100 %%"))
+		}
+	}
+	if h, ok := fmtNumber(m, "height"); ok {
+		switch {
+		case n.Type != "th" && n.Type != "td":
+			ps = append(ps, errorf(n.ID, "only table cells have a height"))
+		case h < 1 || h > maxCellPx:
+			ps = append(ps, errorf(n.ID, "a cell height is 1 to %d px", maxCellPx))
 		}
 	}
 	if ls := fmtString(m, "listStyle"); ls != "" && !listStyles[n.Type][ls] {
@@ -151,9 +168,17 @@ func cssDecls(m map[string]any, box bool) []string {
 	if v, ok := fmtNumber(m, "radius"); ok && v >= 0 && v <= numberFmtLimit["radius"] {
 		add("border-radius", num(v)+"px")
 	}
-	// Column width of a table cell, in % of the table (allowed: the % is not inside ( )).
-	if v, ok := fmtNumber(m, "width"); ok && v >= 1 && v <= 100 {
-		add("width", num(v)+"%")
+	// Column width of a table cell: % of the table (allowed: the % is not inside ( )) or px.
+	if v, ok := fmtNumber(m, "width"); ok {
+		if fmtString(m, "widthUnit") == "px" && v >= 1 && v <= maxCellPx {
+			add("width", num(v)+"px")
+		} else if fmtString(m, "widthUnit") != "px" && v >= 1 && v <= 100 {
+			add("width", num(v)+"%")
+		}
+	}
+	// Height of a table cell (a row is at least as high as its highest cell).
+	if v, ok := fmtNumber(m, "height"); ok && v >= 1 && v <= maxCellPx {
+		add("height", num(v)+"px")
 	}
 	return d
 }

@@ -449,3 +449,33 @@ test('createField: a calculated field starts with an empty formula', () => {
   assert.equal(f.props.fieldType, 'calc');
   assert.equal(f.props.formula, '');
 });
+
+test('table: insert rows and columns anywhere', () => {
+  const r = sample();
+  const tb = tableIn(r); // default table: 2 rows x 2 cells
+  const [r0, r1] = tb.children;
+  const above = t.tableInsertRow(r, r1.children[0].id, true);
+  assert.deepEqual(tb.children.map((x) => x.id), [r0.id, above.id, r1.id], 'above the clicked row');
+  const below = t.tableInsertRow(r, r0.children[1].id, false);
+  assert.deepEqual(tb.children.map((x) => x.id), [r0.id, below.id, above.id, r1.id], 'below the clicked row');
+  assert.equal(below.children.length, 2);
+  assert.equal(t.tableInsertRow(r, tb.id, true), tb.children[0], 'the table itself: at the start');
+  assert.equal(t.tableInsertRow(r, tb.id, false), tb.children[tb.children.length - 1], 'the table itself: at the end');
+
+  const cell = r0.children[0];
+  const left = t.tableInsertCol(r, cell.id, true);
+  assert.equal(r0.children[0], left, 'left of the clicked cell');
+  assert.equal(r0.children.length, 3);
+  for (const tr of tb.children) assert.equal(tr.children.length, 3, 'every row gets a cell');
+  const right = t.tableInsertCol(r, cell.id, false);
+  assert.equal(r0.children[2], right, 'right of the clicked cell');
+  assert.equal(t.tableCols(tb), 4);
+  const end = t.tableInsertCol(r, tb.id, false);
+  const first = tb.children[0];
+  assert.equal(first.children[first.children.length - 1], end, 'the table itself: at the end of the first row');
+  // A header cell next to the new one makes it a header cell too.
+  for (const c of r0.children) c.type = 'td';
+  r0.children[0].type = 'th';
+  assert.equal(t.tableInsertCol(r, r0.children[0].id, true).type, 'th');
+  assert.equal(t.tableInsertCol(r, r0.children[1].id, false).type, 'td');
+});

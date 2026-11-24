@@ -450,6 +450,20 @@ export function tableAddRow(root, id) {
   return tr;
 }
 
+// tableInsertRow adds an empty row above (or, when above is false, below) the row holding id.
+// Without a row (the table itself) it goes to the start (above) or the end (below).
+export function tableInsertRow(root, id, above) {
+  const table = tableOf(root, id);
+  if (!table) throw new Error('not in a table');
+  const nextId = idGen(root);
+  const tr = createNode('tr', nextId);
+  for (let i = 0; i < tableCols(table); i++) tr.children.push(createNode('td', nextId));
+  const row = rowOf(root, id);
+  const at = row ? table.children.indexOf(row) + (above ? 0 : 1) : above ? 0 : table.children.length;
+  table.children.splice(at, 0, tr);
+  return tr;
+}
+
 export function tableRemoveRow(root, id) {
   const table = tableOf(root, id);
   const row = rowOf(root, id);
@@ -464,6 +478,30 @@ export function tableAddCol(root, id) {
   if (!table) throw new Error('not in a table');
   const nextId = idGen(root);
   for (const tr of table.children) tr.children.push(createNode('td', nextId));
+}
+
+// tableInsertCol adds an empty cell to every row, left of (or, when left is false, right of) the
+// column of the cell holding id. Without a cell (the table or a row) it goes to the end. A new
+// cell is a header cell (th) where the cell next to it in its row is one. Returns the new cell of
+// the row that holds id, or of the first row.
+export function tableInsertCol(root, id, left) {
+  const table = tableOf(root, id);
+  if (!table) throw new Error('not in a table');
+  let cell = find(root, id);
+  while (cell && !isCell(cell.node)) cell = cell.parent ? find(root, cell.parent.id) : null;
+  const row = cell ? cell.parent : null;
+  const col = cell ? row.children.indexOf(cell.node) : -1;
+  const at = col < 0 ? null : col + (left ? 0 : 1);
+  const nextId = idGen(root);
+  let made = null;
+  for (const tr of table.children) {
+    const i = at === null ? tr.children.length : Math.min(at, tr.children.length);
+    const next = tr.children[Math.min(i, tr.children.length - 1)];
+    const c = createNode(next && next.type === 'th' ? 'th' : 'td', nextId);
+    tr.children.splice(i, 0, c);
+    if (!made || tr === row) made = c;
+  }
+  return made;
 }
 
 // tableRemoveCol removes the last cell of every row. A cell with a field stays.

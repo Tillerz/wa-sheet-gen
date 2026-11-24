@@ -255,6 +255,7 @@ function checkSheetName() {
   const err = sheetNameError(name);
   $('sheetNameErr').textContent = err;
   $('sheetName').classList.toggle('invalid', !!err);
+  $('btnSheet').classList.toggle('invalid', !!err); // the error is inside the settings panel
   $('rootClass').textContent = `container-fluid block-${name}`;
   return !err;
 }
@@ -938,11 +939,13 @@ function breadcrumb(node) {
 
 function renderSelection(node) {
   const box = $('selection');
+  // The path (Sheet › Row › Col …) sits above the sheet.
+  $('pathBar').replaceChildren(node ? breadcrumb(node) : h('div', { class: 'crumbs' }, h('span', { class: 'crumb current', textContent: 'Nothing selected' })));
   if (!node) {
     box.replaceChildren(h('p', { class: 'hint', textContent: 'Click an element in the sheet to select it.' }));
     return;
   }
-  const out = [breadcrumb(node), h('div', { class: 'sel-type', textContent: typeNames[node.type] || node.type })];
+  const out = [h('div', { class: 'sel-type', textContent: typeNames[node.type] || node.type })];
   const p = (node.props ||= {});
 
   if (node.type === 'col') {
@@ -1421,6 +1424,16 @@ $('btnNew').onclick = doNew;
 $('btnOpen').onclick = doOpen;
 $('btnSave').onclick = () => doSave();
 $('btnSaveAs').onclick = () => doSaveAs();
+
+// Sheet settings float over the sidebar; the same button opens and closes them.
+$('btnSheet').onclick = () => {
+  if ($('sheetDlg').open) $('sheetDlg').close();
+  else $('sheetDlg').show();
+};
+$('sheetDlgClose').onclick = () => $('sheetDlg').close();
+$('sheetDlg').addEventListener('keydown', (e) => {
+  if (e.key === 'Escape') $('sheetDlg').close();
+});
 
 $('sheetName').addEventListener('input', () => {
   state.project.sheetName = $('sheetName').value;

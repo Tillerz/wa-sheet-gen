@@ -146,7 +146,19 @@ export function buildFormat({ node, look, setLook, rules, fonts, set, refresh, i
   }
 
   if (node.type === 'th' || node.type === 'td') {
-    out.push(row('Column width', numberField(m.width, 1, 100, '% (auto)', (v) => put('width', v))));
+    // The unit changes what the number means, so a new unit starts without a width.
+    const px = m.widthUnit === 'px';
+    const unit = el('select', {
+      title: 'Percent of the table, or fixed pixels',
+      onchange: () => {
+        put('width', '');
+        put('widthUnit', unit.value === 'px' ? 'px' : '');
+        refresh();
+      },
+    }, el('option', { value: '%', textContent: '%' }), el('option', { value: 'px', textContent: 'px' }));
+    unit.value = px ? 'px' : '%';
+    out.push(row('Column width', numberField(m.width, 1, px ? 2000 : 100, '(auto)', (v) => put('width', v)), unit));
+    out.push(row('Cell height', numberField(m.height, 1, 2000, 'px (auto)', (v) => put('height', v))));
   }
 
   const box = boxKind(node, look);

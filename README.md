@@ -22,7 +22,7 @@ More in [Screenshots](#screenshots).
 - **Custom CSS**: extra rules for `style.css` and `approved.css`, checked against World Anvil's rules.
 - **Looks like it will on World Anvil**: the editor uses the same Bootstrap version as World Anvil sheets (5.0.1, CSS only) and applies exactly the CSS that the export writes, made by the same code. The **Sheet** and **Form** previews are not a separate imitation: they are the exported Twig files themselves, filled with sample data. What can still differ is what World Anvil adds around the sheet: the site's own styles and theme colors (`--dark`, `--light`), its page font, Font Awesome icons and `[img:…]` images, which the editor only stands in for.
 - **Built-in checks for World Anvil's rules**: no `);`, no quotes or `%` inside `( )` in CSS, no class names starting with `sh` or `py`, no filtered words like `script`, no JavaScript, unique field names. The export stops with a clear list of problems.
-- **Comfortable editor**: resizable sidebars, a path bar to reach hidden elements (e.g. a table under its cells), undo / redo, autosave (nothing is lost on a reload or crash), keyboard shortcuts, recent sheets, light and dark mode.
+- **Comfortable editor**: resizable sidebars, a path bar above the sheet to reach hidden elements (e.g. a table under its cells), a sheet settings panel, numbers while you resize, undo / redo, autosave (nothing is lost on a reload or crash), keyboard shortcuts, recent sheets, light and dark mode.
 - **Small and private**: one program file, no installer, no account, no internet needed (except to load your own font URLs in the preview).
 
 ## What it exports

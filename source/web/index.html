@@ -13,6 +13,8 @@
       <button id="btnOpen" type="button">Open…</button>
       <button id="btnSave" type="button" title="Save (Ctrl+S)">Save</button>
       <button id="btnSaveAs" type="button" title="Save as (Ctrl+Shift+S)">Save as…</button>
+      <span class="bar-sep"></span>
+      <button id="btnSheet" type="button" title="Sheet name, theme, fonts, custom CSS and project folder">Sheet settings…</button>
     </nav>
     <div class="doc-title" id="docTitle"></div>
     <nav class="actions">
@@ -47,7 +49,7 @@
       <div class="palette-item" draggable="true" data-type="field:image"><span class="pi-icon">▣</span>Image ID</div>
       <div class="palette-item" draggable="true" data-type="field:calc"><span class="pi-icon">ƒ</span>Calculated</div>
       <p class="hint">Drag an element into the sheet. It can only land where it is allowed.</p>
-      <p class="hint">Hidden element (e.g. a table under its cells)? Select something inside it, then click its name in the path at the top of the right panel.</p>
+      <p class="hint">Hidden element (e.g. a table under its cells)? Select something inside it, then click its name in the path above the sheet.</p>
       <p class="hint">Keys: Delete removes, Ctrl+D duplicates, Ctrl+Z / Ctrl+Y undo and redo, Ctrl+S saves, Esc deselects.</p>
     </aside>
     <div class="splitter" id="splitLeft" title="Drag to resize. Double-click: default width."></div>
@@ -74,13 +76,25 @@
         <button type="button" id="btnOutlines" class="small toggle" title="Show the dashed outlines of rows, cols, lists and cells">▦ Outlines</button>
         <button type="button" id="btnTheme" class="small" title="Canvas background (only in the editor, not exported)"></button>
       </div>
+      <div class="path-bar" id="pathBar"></div>
       <div class="canvas-scroll">
         <iframe id="canvas" src="canvas.html" title="Sheet canvas"></iframe>
       </div>
     </section>
     <div class="splitter" id="splitRight" title="Drag to resize. Double-click: default width."></div>
     <aside class="panel" id="sidePanel">
-      <h2>Sheet</h2>
+      <h2>Selection</h2>
+      <div id="selection"></div>
+    </aside>
+  </main>
+
+  <!-- Sheet settings: not modal, so the canvas can be watched while a theme is picked. -->
+  <dialog id="sheetDlg" class="float">
+    <div class="dlg">
+      <div class="float-head">
+        <h3>Sheet settings</h3>
+        <button type="button" id="sheetDlgClose" class="small" title="Close (Esc)">Close</button>
+      </div>
       <label class="field">
         <span>Sheet name</span>
         <input id="sheetName" type="text" spellcheck="false" autocomplete="off">
@@ -88,14 +102,10 @@
       <p class="error" id="sheetNameErr"></p>
       <p class="hint">Root class: <code id="rootClass"></code></p>
       <div id="sheetExtras"></div>
-
-      <h2>Selection</h2>
-      <div id="selection"></div>
-
-      <h2>Project folder</h2>
+      <div class="dlg-sub">Project folder</div>
       <p class="path" id="folderPath"></p>
-    </aside>
-  </main>
+    </div>
+  </dialog>
 
   <dialog id="folderDlg">
     <div class="dlg">
