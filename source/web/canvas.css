@@ -176,6 +176,13 @@ i.fa-square::before { content: "☐"; font-style: normal; }
   cursor: help;
   opacity: 0.85;
 }
+/* In table cells the mark sits on the top edge of the field, in the cell padding, so it never covers the value. */
+:is(td, th) > .ed-node > .ed-listmark {
+  top: -8px;
+  right: 0;
+  font-size: 9px;
+  padding: 1px 3px;
+}
 body.preview .ed-listmark { display: none; }
 
 /* Column width handle on first-row table cells (editor only) */

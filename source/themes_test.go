@@ -17,13 +17,21 @@ func TestThemesPassWARules(t *testing.T) {
 		if ps := checkCSS(th.ID, css); len(ps) > 0 {
 			t.Errorf("%s breaks a WA rule: %s", th.ID, problemsText(ps))
 		}
-		for _, want := range []string{
-			".block-test\n{", "border: ", ".block-test .card\n{", ".block-test .card-header\n{",
-			".block-test .lbl,\n.block-test .ilbl\n{", ".block-test .var\n{", ".block-test .form-control\n{", "color: " + th.InputText + " !important",
-			".block-test .table tr:nth-child(even)\n{", "li:nth-child(even)",
-			".block-test .card-body\n{", "background: transparent",
-			".block-test .table th,\n.block-test .table td\n{", ".block-test .table tr:nth-child(n)\n{",
-		} {
+		wants := []string{
+			".block-test\n{", ".block-test .card\n{", ".block-test .card-header\n{",
+			".block-test .lbl,\n.block-test .ilbl\n{", ".block-test .table tr:nth-child(even)", "li:nth-child(even)",
+		}
+		if !th.Native { // a native theme leaves WA's own card body, input and row colors alone
+			wants = append(wants, "border: ", ".block-test .var\n{", ".block-test .form-control\n{", "color: "+th.InputText+" !important",
+				".block-test .card-body\n{", "background: transparent",
+				".block-test .table th,\n.block-test .table td\n{", ".block-test .table tr:nth-child(n)\n{")
+		} else if strings.Contains(css, ".form-control") || strings.Contains(css, ".card-body") || strings.Contains(css, "background-color: transparent") {
+			t.Errorf("%s is native but sets WA's own colors", th.ID)
+		}
+		if strings.Contains(css, "rgb") { // WA's filter puts its class prefix after every ", " inside a value
+			t.Errorf("%s uses rgb()/rgba(): use hex (#RRGGBBAA for see-through)", th.ID)
+		}
+		for _, want := range wants {
 			if !strings.Contains(css, want) {
 				t.Errorf("%s misses %q", th.ID, want)
 			}
@@ -118,5 +126,25 @@ func TestGeneratedCSSHasNoParenBrace(t *testing.T) {
 	}
 	if ps := checkCSS("style.css", ".a li:nth-child(even)\n{\n  color: red;\n}"); len(ps) != 0 {
 		t.Errorf("{ on a new line is fine: %s", problemsText(ps))
+	}
+}
+
+// WA's filter breaks a comma inside ( ) in a value (rgba, linear-gradient ...): the CSS check must say so.
+func TestCheckCSSCatchesCommaInValue(t *testing.T) {
+	for _, bad := range []string{"a { color: rgba(1, 2, 3, 0.5) ; }", "a { color: rgb(1,2,3) ; }", "a\n{\n  background: linear-gradient(red, blue) ;\n}"} {
+		if ps := checkCSS("style.css", bad); !strings.Contains(problemsText(ps), "comma inside") {
+			t.Errorf("not caught: %s", bad)
+		}
+	}
+	for _, ok := range []string{"a { color: #80808040 ; background: var(--dark) ; }", ".a:is(.b, .c)\n{\n  color: red ;\n}", "a { color: rgb(1 2 3) ; }"} {
+		if ps := checkCSS("style.css", ok); len(ps) != 0 {
+			t.Errorf("fine, but reported: %s: %s", ok, problemsText(ps))
+		}
+	}
+	if ps := checkCSS("approved.css", "a { background: linear-gradient(red, blue) ; }"); len(ps) != 0 {
+		t.Errorf("approved.css may hold gradients: %s", problemsText(ps))
+	}
+	if ps := checkCSS("style.css", "a { background: linear-gradient(red, blue) ; }"); !strings.Contains(problemsText(ps), "linear-gradient") {
+		t.Errorf("the function name should be in the message: %s", problemsText(ps))
 	}
 }

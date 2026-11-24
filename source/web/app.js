@@ -661,7 +661,7 @@ const typeNames = {
 
 const fieldTypeNames = {
   string: 'String', number: 'Number', text: 'Text area', checkbox: 'Checkbox',
-  select: 'Dropdown', suggest: 'Suggest', image: 'Image ID',
+  select: 'Dropdown', suggest: 'Suggest', image: 'Image ID', calc: 'Calculated',
 };
 
 // usedNamesExcept lists the field names node may not take. Fields in lists may share a
@@ -715,6 +715,7 @@ function fieldPanel(node, out) {
     onchange: () => {
       p.fieldType = typeSel.value;
       if (p.fieldType === 'text' && !p.rows) p.rows = 3;
+      if (p.fieldType === 'calc' && p.formula === undefined) p.formula = '';
       if ((p.fieldType === 'select' || p.fieldType === 'suggest') && !(p.options || []).length) {
         p.options = ['Option 1', 'Option 2'];
       }
@@ -759,7 +760,24 @@ function fieldPanel(node, out) {
       noteChange(false);
     },
   });
-  out.push(labeled('Description', descInput));
+  if (p.fieldType !== 'calc') out.push(labeled('Description', descInput)); // a calculated field has no WA entry
+
+  if (p.fieldType === 'calc') {
+    const numbers = [];
+    T.walk(state.project.root, (n) => {
+      if (n.type === 'field' && n.props.fieldType === 'number') numbers.push(n.props.name);
+    });
+    const formula = h('textarea', {
+      rows: 3, value: p.formula || '', spellcheck: false, placeholder: 'e.g. @base + skill',
+      oninput: () => {
+        p.formula = formula.value;
+        changed();
+      },
+    });
+    out.push(labeled('Formula', formula));
+    out.push(h('p', { class: 'hint', textContent: 'Numbers, field names, + - * ( ) and // (round down). A name is the value of that number field (in a list: of the same entry). @name is the number field whose label is the text in the field "name". Divide only by a fixed number. Shown in the sheet only: not in the form, and nothing is saved on WA. Errors show when you click Check.' }));
+    out.push(h('p', { class: 'hint', textContent: numbers.length ? 'Number fields: ' + [...new Set(numbers)].join(', ') : 'There is no number field yet.' }));
+  }
 
   if (p.fieldType === 'number') {
     const warn = h('p', { class: 'error' });

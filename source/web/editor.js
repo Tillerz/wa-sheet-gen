@@ -98,6 +98,7 @@ export function createEditor({ iframe, getProject, onChange, onSelect, openMenu,
       case 'select': return '▾ ' + ((p.options || [])[0] || '');
       case 'suggest': return ((p.options || [])[0] || '') + ' …';
       case 'image': return '[WA image]';
+      case 'calc': return p.formula ? '= ' + p.formula : '= (formula)';
       default: return 'Text';
     }
   }

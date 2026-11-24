@@ -9,7 +9,7 @@ import (
 // CSS come later in the file and override it. All themes share one template, so they all
 // style the same parts. Fonts: exactly one per font-family (WA allows no fallback list):
 // a library font (loaded via approved.css) or one that Windows and macOS both have
-// (Georgia, Arial, Courier New). Colors are hex only (WA filter: no quotes, no % inside ( ), no ");").
+// (Georgia, Arial, Courier New). Colors are hex only, #RRGGBBAA for see-through; never rgb()/rgba(): the WA filter breaks the commas (WA filter: no quotes, no % inside ( ), no ");").
 type Theme struct {
 	ID, Name, Desc string
 
@@ -25,6 +25,9 @@ type Theme struct {
 	InputBorder           string
 	TableBorder, Stripe   string
 	Fonts                 []string // library fonts (fontlib.go) the theme uses; added to approved.css
+	// Native: WA's own colors stay (cards, card bodies, inputs, table rows, text). WA sets them
+	// itself for its light and dark mode, so the theme only adds card header, borders and stripes.
+	Native bool
 }
 
 var themes = []Theme{
@@ -82,6 +85,9 @@ var themes = []Theme{
 		CardBg: "#1d2027", CardBorder: "#2f343e", HeaderBg: "#252a33", HeaderText: "#f1f3f7",
 		Label: "#8d96a7", Value: "#f5f7fa", LabelStyle: "upper",
 		InputBg: "#14161b", InputText: "#f5f7fa", InputBorder: "#3a404b", TableBorder: "#2f343e", Stripe: "#22262e"},
+	{ID: "minimal", Name: "Minimal (light/dark)", Desc: "keeps WA's own light/dark colors; only card header, borders and stripes",
+		Native: true, Radius: 8, CardBorder: "var(--dark)", HeaderBg: "var(--dark)", HeaderText: "var(--light)",
+		LabelStyle: "smallcaps", TableBorder: "#80808059", Stripe: "#80808040"},
 }
 
 func findTheme(id string) *Theme {
@@ -99,7 +105,17 @@ func findTheme(id string) *Theme {
 func themeCSS(t *Theme, root string) string {
 	var b strings.Builder
 	fmt.Fprintf(&b, "/* Theme: %s */\n", t.Name)
-	rule := func(sel string, decls ...string) { cssRule(&b, sel, decls) }
+	// A declaration whose value is empty is left out: the "minimal" theme sets no sheet colors
+	// or fonts, so WA's own light/dark colors and page font stay.
+	rule := func(sel string, decls ...string) {
+		var kept []string
+		for _, d := range decls {
+			if !strings.HasSuffix(d, ": ") {
+				kept = append(kept, d)
+			}
+		}
+		cssRule(&b, sel, kept)
+	}
 	rule(root,
 		"background-color: "+t.Bg,
 		"color: "+t.Text,
@@ -125,10 +141,12 @@ func themeCSS(t *Theme, root string) string {
 	}
 	rule(root+" .card-header", header...)
 	// WA's site CSS colors .card-body (dark mode: dark grey). The card's colors show instead.
-	rule(root+" .card-body",
-		"background: transparent",
-		"color: inherit",
-		"border: none")
+	if !t.Native {
+		rule(root+" .card-body",
+			"background: transparent",
+			"color: inherit",
+			"border: none")
+	}
 	label := []string{"color: " + t.Label, "font-size: 0.85em"}
 	if t.LabelStyle == "upper" {
 		label = append(label, "text-transform: uppercase", "letter-spacing: 0.06em")
@@ -136,26 +154,36 @@ func themeCSS(t *Theme, root string) string {
 		label = append(label, "font-variant: small-caps", "letter-spacing: 0.03em")
 	}
 	rule(root+" .lbl, "+root+" .ilbl", label...)
-	rule(root+" .var", "color: "+t.Value)
-	// WA's site CSS sets input colors with !important (dark mode: grey on grey), so the theme
-	// needs !important too; it wins because it is more specific (WA's template class + ours).
-	rule(root+" .form-control",
-		"background-color: "+t.InputBg+" !important",
-		"color: "+t.InputText+" !important",
-		"border: 1px solid "+t.InputBorder+" !important")
-	// Rows carry the colors (card color, every second row the stripe color) and cells are
-	// transparent, so WA's own row and header colors (dark mode) never show through.
-	// Only classic CSS: WA's CSS processor drops rules with :is(), :where() or custom properties.
-	// tr:nth-child(n) matches every row; it is as specific as WA's tr:nth-of-type rules.
-	rule(root+" .table",
-		"background-color: transparent",
-		"color: "+t.Text,
-		"border-color: "+t.TableBorder)
-	rule(root+" .table th, "+root+" .table td",
-		"background-color: transparent",
-		"color: inherit")
-	rule(root+" .table tr:nth-child(n)", "background-color: "+t.CardBg)
-	rule(root+" .table tr:nth-child(even)", "background-color: "+t.Stripe)
+	if !t.Native {
+		rule(root+" .var", "color: "+t.Value)
+	}
+	if t.Native {
+		// Only stripes: a see-through grey works on light and dark rows, and WA's own row colors stay.
+		// Painted as an inset shadow in the cells (as Bootstrap's table-striped does), so it shows
+		// whatever background WA gives the cells, and a cell color set in a format still shows through.
+		rule(root+" .table tr:nth-child(even) td, "+root+" .table tr:nth-child(even) th",
+			"box-shadow: inset 0 0 0 9999px "+t.Stripe)
+	} else {
+		// WA's site CSS sets input colors with !important (dark mode: grey on grey), so the theme
+		// needs !important too; it wins because it is more specific (WA's template class + ours).
+		rule(root+" .form-control",
+			"background-color: "+t.InputBg+" !important",
+			"color: "+t.InputText+" !important",
+			"border: 1px solid "+t.InputBorder+" !important")
+		// Rows carry the colors (card color, every second row the stripe color) and cells are
+		// transparent, so WA's own row and header colors (dark mode) never show through.
+		// Only classic CSS: WA's CSS processor drops rules with :is(), :where() or custom properties.
+		// tr:nth-child(n) matches every row; it is as specific as WA's tr:nth-of-type rules.
+		rule(root+" .table",
+			"background-color: transparent",
+			"color: "+t.Text,
+			"border-color: "+t.TableBorder)
+		rule(root+" .table th, "+root+" .table td",
+			"background-color: transparent",
+			"color: inherit")
+		rule(root+" .table tr:nth-child(n)", "background-color: "+t.CardBg)
+		rule(root+" .table tr:nth-child(even)", "background-color: "+t.Stripe)
+	}
 	rule(root+" ul > li:nth-child(even), "+root+" ol > li:nth-child(even)", "background-color: "+t.Stripe)
 	return b.String()
 }

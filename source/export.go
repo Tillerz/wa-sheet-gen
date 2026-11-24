@@ -127,8 +127,8 @@ func genYAML(p *Project) string {
 	var b strings.Builder
 	b.WriteString("fields:\n")
 	eachFieldEntry(p.Root, func(n *Node, suffix string) {
-		if suffix != "" && isConstField(n) {
-			return // preset text only, nothing to save
+		if isCalcField(n) || suffix != "" && isConstField(n) {
+			return // calculated or preset text only, nothing to save
 		}
 		name := propString(n, "name") + suffix
 		// WA lists fields by their YAML label, so an empty label falls back to the name.
@@ -247,6 +247,7 @@ type twigGen struct {
 	fields  map[string]*Node  // field node id → field, for field labels
 	loop    bool              // inside a {% for %} list: field names get _{{id}}
 	inList  map[string]bool   // field ids inside a list
+	infos   []fieldInfo       // all fields with their lists (calculated fields)
 }
 
 // cls returns " f-N" for a formatted element, or "".
@@ -276,6 +277,7 @@ func genTwig(p *Project, form bool) string {
 	classes, _ := formatClasses(p)
 	g := &twigGen{form: form, sheet: p.SheetName, classes: classes, fields: map[string]*Node{}}
 	eachField(p.Root, func(n *Node) { g.fields[n.ID] = n })
+	g.infos = fieldInfos(p.Root)
 	g.inList = map[string]bool{}
 	eachFieldEntry(p.Root, func(n *Node, suffix string) {
 		if suffix != "" {
@@ -425,6 +427,9 @@ func (g *twigGen) nodeInner(n *Node, parent *Node, depth int) {
 		if label == "" {
 			return
 		}
+		if g.form && isCalcField(f) {
+			return // a calculated field is not in the form
+		}
 		name := propString(f, "name")
 		if g.form && (g.inList[f.ID] && !g.loop || g.loop && isConstField(f)) {
 			// A header label of a list field sits outside the loop: it belongs to all entries.
@@ -443,6 +448,15 @@ func (g *twigGen) field(n *Node, inCell bool, depth int) {
 	label := esc(strings.TrimSpace(propString(n, "label")))
 	if inCell {
 		label = ""
+	}
+	if isCalcField(n) {
+		if !g.form {
+			if label != "" {
+				g.line(depth, fmt.Sprintf("<div class='lbl lbl-%s'>%s</div>", cls, label))
+			}
+			g.calc(n, depth)
+		}
+		return
 	}
 	// Without a label only the value is written.
 	if g.form {
@@ -477,24 +491,35 @@ func (g *twigGen) nameAttr(name string) string {
 }
 
 // entryHasValue is the Twig condition "this list entry has a value": its data fields
-// joined with "or". Empty when every entry must show: the list keeps empty entries
+// joined with "or" (dropdowns do not count: the form always sends one, so they are never empty). Empty when every entry must show: the list keeps empty entries
 // (props.showEmpty), it has no data fields, or a field has preset values (they always
 // have something to show).
 func (g *twigGen) entryHasValue(list *Node) string {
 	if propBool(list, "showEmpty") {
 		return ""
 	}
-	var conds []string
+	var conds, selects []string
 	preset := false
 	eachField(list, func(f *Node) {
+		if isCalcField(f) {
+			return // its value comes from other fields
+		}
 		if hasPreset(f) {
 			preset = true
 			return
 		}
-		conds = append(conds, g.varExpr(propString(f, "name"))+"|default")
+		cond := g.varExpr(propString(f, "name")) + "|default"
+		if propString(f, "fieldType") == "select" {
+			selects = append(selects, cond) // the form always sends the first option: no sign of use
+		} else {
+			conds = append(conds, cond)
+		}
 	})
 	if preset {
 		return ""
+	}
+	if len(conds) == 0 { // a list of dropdowns only: they have to decide
+		conds = selects
 	}
 	return strings.Join(conds, " or ")
 }
@@ -601,4 +626,73 @@ func (g *twigGen) formInput(n *Node) string {
 	default:
 		return fmt.Sprintf("<input %s %s type='text'%s%s />", value, common, req, ph)
 	}
+}
+
+// calc writes a calculated field (bible 11) in the sheet: one {% set %} line per field the formula
+// uses (the WA filter can remove long expressions with many brackets), then the result. The comment
+// {# calc name #} lets the preview find the result.
+func (g *twigGen) calc(n *Node, depth int) {
+	name, cls := propString(n, "name"), fieldClass(propString(n, "name"))
+	tree, err := parseCalc(propString(n, "formula"))
+	if err != nil {
+		g.line(depth, fmt.Sprintf("<div class='var var-%s'></div>", cls)) // the check reports it
+		return
+	}
+	from := fieldInfo{n, 1, 1}
+	for _, f := range g.infos {
+		if f.n == n {
+			from = f
+		}
+	}
+	// A field outside a list is a plain variable, also inside a list loop.
+	value := func(f fieldInfo) string {
+		if f.inList() && g.loop {
+			return "attribute(variables, '" + propString(f.n, "name") + "_' ~ id)"
+		}
+		return "variables." + propString(f.n, "name")
+	}
+	var sets []string
+	vars := map[string]string{}
+	mapName := "calc_" + name + "_names"
+	mapDone := false
+	leaf := func(c *calcNode) string {
+		key := string(c.kind) + c.name
+		if v, ok := vars[key]; ok {
+			return v
+		}
+		v := fmt.Sprintf("calc_%s_%d", name, len(vars)+1)
+		vars[key] = v
+		t, ok := calcTarget(g.infos, c.name, from)
+		switch {
+		case !ok:
+			sets = append(sets, fmt.Sprintf("{%% set %s = 0 %%}", v))
+		case c.kind == 'f':
+			sets = append(sets, fmt.Sprintf("{%% set %s = %s|default(0) %%}", v, value(t)))
+		default:
+			if !mapDone {
+				mapDone = true
+				labels, names := numberLabels(g.infos)
+				var items []string
+				for _, l := range labels {
+					items = append(items, "'"+twigStr(l)+"': '"+names[l]+"'")
+				}
+				sets = append(sets, fmt.Sprintf("{%% set %s = {%s} %%}", mapName, strings.Join(items, ", ")))
+			}
+			text := value(t) + "|default"
+			if g.loop && hasPreset(t.n) {
+				text = g.presetExpr(t.n)
+				if !isConstField(t.n) {
+					text = value(t) + "|default(" + g.presetExpr(t.n) + ")"
+				}
+			}
+			sets = append(sets, fmt.Sprintf("{%% set %s_key = %s %%}", v, text))
+			sets = append(sets, fmt.Sprintf("{%% set %s = attribute(variables, %s[%s_key]|default('-'))|default(0) %%}", v, mapName, v))
+		}
+		return v
+	}
+	expr := tree.twig(leaf)
+	for _, s := range sets {
+		g.line(depth, s)
+	}
+	g.line(depth, fmt.Sprintf("<div class='var var-%s'>{# calc %s #}{{ %s }}</div>", cls, name, expr))
 }

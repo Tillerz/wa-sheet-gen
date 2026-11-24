@@ -58,7 +58,7 @@ func canContain(parent, child string) bool {
 
 var fieldTypes = map[string]bool{
 	"string": true, "number": true, "text": true, "checkbox": true,
-	"select": true, "suggest": true, "image": true,
+	"select": true, "suggest": true, "image": true, "calc": true,
 }
 
 var digitsRe = regexp.MustCompile(`^[0-9]+$`)
@@ -211,6 +211,12 @@ func validateProject(p *Project) []Problem {
 	if !hasName {
 		ps = append(ps, errorf("", "the required field \"name\" is missing"))
 	}
+	infos := fieldInfos(p.Root)
+	for _, f := range infos {
+		if isCalcField(f.n) {
+			ps = append(ps, validateCalc(infos, f)...)
+		}
+	}
 	return ps
 }
 
@@ -287,6 +293,37 @@ var shPyClassRe = regexp.MustCompile(`(?i)\.(sh|py)[a-z0-9_-]*`)
 // parenBraceRe finds ") {" on one line: WA's filter removes it (e.g. after nth-child(n)).
 var parenBraceRe = regexp.MustCompile(`\)[ \t]*\{`)
 
+// commaInValue finds a comma inside ( ) in a declaration value, like rgba(1, 2, 3, 0.5) or
+// linear-gradient(a, b). WA's filter reads ", " as a selector list and puts its template class
+// after it, which breaks the value. Commas in selectors (:is(.a, .b)) are fine. It returns the
+// name of the function, or "".
+func commaInValue(css string) string {
+	braces, parens, start := 0, 0, 0
+	for i, r := range css {
+		switch {
+		case r == '{':
+			braces++
+			parens = 0
+		case r == '}' && braces > 0:
+			braces--
+			parens = 0
+		case braces == 0:
+		case r == '(':
+			if parens == 0 {
+				start = i
+			}
+			parens++
+		case r == ')' && parens > 0:
+			parens--
+		case r == ',' && parens > 0:
+			name := strings.TrimRight(css[:start], " \t")
+			from := strings.LastIndexAny(name, " \t:;{\n(,") + 1
+			return name[from:]
+		}
+	}
+	return ""
+}
+
 // fontListRe finds a font-family with a fallback list: WA allows only one font.
 var fontListRe = regexp.MustCompile(`(?i)font-family:[^;{}]*,[^;{}]*`)
 
@@ -315,6 +352,10 @@ func checkCSS(file, css string) []Problem {
 	}
 	if parenBraceRe.MatchString(css) {
 		ps = append(ps, errorf("", "%s contains \") {\" — WA removes it and breaks the rule; put the { on a new line", file))
+	}
+	// approved.css has fewer filters (gradients live there, bible 3.1): only style.css is affected.
+	if fn := commaInValue(css); fn != "" && file == "style.css" {
+		ps = append(ps, errorf("", "%s has a comma inside %s( ): WA's filter breaks it. Use hex colors (e.g. #80808040 for see-through); gradients and other functions with commas do not work", file, fn))
 	}
 	if m := fontListRe.FindString(css); m != "" {
 		ps = append(ps, errorf("", "%s: %q names more than one font; WA allows only one font per font-family", file, strings.TrimSpace(m)))

@@ -17,7 +17,7 @@ export const allowedChildren = {
   td: ['text', 'field', 'flabel'],
 };
 
-export const fieldTypes = ['string', 'number', 'text', 'checkbox', 'select', 'suggest', 'image'];
+export const fieldTypes = ['string', 'number', 'text', 'checkbox', 'select', 'suggest', 'image', 'calc'];
 
 export function canContain(parentType, childType) {
   return (allowedChildren[parentType] || []).includes(childType);
@@ -409,6 +409,7 @@ export function createField(root, fieldType, nextId) {
   const name = used.has('new_field') ? uniqueFieldName('new_field', used) : 'new_field';
   const props = { fieldType, name, label: name.replaceAll('_', ' ') };
   if (fieldType === 'text') props.rows = 3;
+  if (fieldType === 'calc') props.formula = '';
   if (fieldType === 'select' || fieldType === 'suggest') props.options = ['Option 1', 'Option 2'];
   return { id: nextId(), type: 'field', props };
 }

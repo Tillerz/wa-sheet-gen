@@ -26,6 +26,9 @@ var (
 	twigUnquote = strings.NewReplacer(`\'`, `'`, `\\`, `\`)
 	twigLoopRe  = regexp.MustCompile(`(?s)\{% for i in ([0-9]+)\.\.([0-9]+) %\}\n[ ]*` + regexp.QuoteMeta(loopIDLine) + `\n(.*?)[ ]*\{% endfor %\}\n`)
 	twigAttrRe  = regexp.MustCompile(`attribute\(variables, '([a-z0-9_]+)' ~ id\)`)
+	// A calculated field: its {% set calc_… %} lines are dropped, {# calc x #}{{ … }} shows the sample result.
+	calcSetRe = regexp.MustCompile(`(?m)^[ ]*\{% set calc_[^\n]*%\}\n`)
+	calcUseRe = regexp.MustCompile(`\{# calc ([a-z0-9_]+) #\}\{\{[^}]*\}\}`)
 )
 
 // sampleData gives every field a value to show in the previews.
@@ -44,6 +47,8 @@ func sampleData(p *Project) map[string]string {
 			label += " " + strings.TrimLeft(suffix[1:], "0")
 		}
 		switch propString(n, "fieldType") {
+		case "calc":
+			// Worked out below, when all other values are known.
 		case "number":
 			v := 3.0
 			if m, ok := propNumber(n, "min"); ok && m > v {
@@ -76,7 +81,59 @@ func sampleData(p *Project) map[string]string {
 			}
 		}
 	})
+	sampleCalcs(p, vars)
 	return vars
+}
+
+// sampleCalcs works out the calculated fields from the sample values.
+func sampleCalcs(p *Project, vars map[string]string) {
+	infos := fieldInfos(p.Root)
+	_, labelNames := numberLabels(infos)
+	for _, from := range infos {
+		if !isCalcField(from.n) {
+			continue
+		}
+		tree, err := parseCalc(propString(from.n, "formula"))
+		if err != nil {
+			continue
+		}
+		for i := from.start; i < from.start+from.count; i++ {
+			suffix := ""
+			if from.inList() {
+				suffix = fmt.Sprintf("_%03d", i)
+			}
+			// The sample text of a field in this entry; a preset field shows its entry's preset.
+			text := func(t fieldInfo) string {
+				if t.inList() && hasPreset(t.n) {
+					if k := i - 1; k < len(propStrings(t.n, "preset")) {
+						return propStrings(t.n, "preset")[k]
+					}
+					return ""
+				}
+				if t.inList() {
+					return vars[propString(t.n, "name")+suffix]
+				}
+				return vars[propString(t.n, "name")]
+			}
+			result := tree.eval(func(c *calcNode) float64 {
+				t, ok := calcTarget(infos, c.name, from)
+				if !ok {
+					return 0
+				}
+				v := text(t)
+				if c.kind == '@' {
+					target, ok := labelNames[strings.TrimSpace(v)]
+					if !ok {
+						return 0
+					}
+					v = vars[target]
+				}
+				f, _ := strconv.ParseFloat(strings.TrimSpace(v), 64)
+				return f
+			})
+			vars[propString(from.n, "name")+suffix] = num(result)
+		}
+	}
 }
 
 // isPositiveText is Twig's truth for a stored value: empty and "0" are false.
@@ -92,6 +149,7 @@ func isPositive(s string) bool {
 
 // renderPreview fills our generated Twig with vars. Values are HTML-escaped like Twig does.
 func renderPreview(twig string, vars map[string]string) string {
+	twig = calcSetRe.ReplaceAllString(twig, "")
 	// Preset arrays: {% set preset_x = ['a', 'b'] %} (raw Twig strings, still escaped)
 	presets := map[string][]string{}
 	twig = presetSetRe.ReplaceAllStringFunc(twig, func(m string) string {
@@ -109,7 +167,8 @@ func renderPreview(twig string, vars map[string]string) string {
 		var b strings.Builder
 		for i := from; i <= to; i++ {
 			id := fmt.Sprintf("%03d", i)
-			body := twigAttrRe.ReplaceAllString(g[3], "variables.${1}"+id)
+			body := calcUseRe.ReplaceAllString(g[3], "{{variables.${1}_"+id+"|default}}")
+			body = twigAttrRe.ReplaceAllString(body, "variables.${1}"+id)
 			// preset_x[i - N]|default → the entry's preset value as a Twig string
 			body = presetUseRe.ReplaceAllStringFunc(body, func(u string) string {
 				pg := presetUseRe.FindStringSubmatch(u)
@@ -123,6 +182,7 @@ func renderPreview(twig string, vars map[string]string) string {
 		}
 		return b.String()
 	})
+	out = calcUseRe.ReplaceAllString(out, "{{variables.${1}|default}}")
 	out = twigIfGt0Re.ReplaceAllStringFunc(out, func(m string) string {
 		g := twigIfGt0Re.FindStringSubmatch(m)
 		if isPositive(vars[g[1]]) {

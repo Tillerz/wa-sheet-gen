@@ -116,3 +116,24 @@ func TestEmptyListEntriesHidden(t *testing.T) {
 		t.Errorf("showEmpty must keep every entry")
 	}
 }
+
+// A dropdown in a list always has a value (the form sends its first option), so it must not
+// keep an otherwise empty entry visible, unless the list has nothing else.
+func TestEmptyListEntriesIgnoreDropdowns(t *testing.T) {
+	p := newProject()
+	field := func(id, ft, name string) *Node {
+		return &Node{ID: id, Type: "field", Props: map[string]any{"fieldType": ft, "name": name, "label": name, "options": []any{"Strength", "Agility"}}}
+	}
+	p.Root.Children = append(p.Root.Children, &Node{ID: "r", Type: "row", Props: map[string]any{"repeat": 3.0}, Children: []*Node{
+		{ID: "c", Type: "col", Children: []*Node{field("a", "string", "weapon"), field("b", "select", "base")}}}})
+	vars := map[string]string{"weapon_001": "Sword", "base_001": "Strength", "base_002": "Strength", "base_003": "Agility"}
+	sheet := renderPreview(genTwig(p, false), vars)
+	if strings.Count(sheet, "var-weapon") != 1 || strings.Count(sheet, "var-base") != 1 {
+		t.Errorf("only entry 1 has a weapon; the dropdowns of 2 and 3 must not show them:\n%s", sheet)
+	}
+	// Only dropdowns: they decide.
+	p.Root.Children[1].Children[0].Children = p.Root.Children[1].Children[0].Children[1:]
+	if sheet := renderPreview(genTwig(p, false), map[string]string{"base_001": "Strength"}); strings.Count(sheet, "var-base") != 1 {
+		t.Errorf("a list of dropdowns only shows the entries that have a value:\n%s", sheet)
+	}
+}

@@ -442,3 +442,10 @@ test('duplicating a table continues the list row inside it', () => {
   assert.equal(copy.children[0].children[0].children[0].props.field, copyRow.children[0].children[0].id, 'header label points to the copy');
   assert.deepEqual(t.listRange(row), [1, 20], 'original unchanged');
 });
+
+test('createField: a calculated field starts with an empty formula', () => {
+  const r = sample();
+  const f = t.createField(r, 'calc', t.idGen(r));
+  assert.equal(f.props.fieldType, 'calc');
+  assert.equal(f.props.formula, '');
+});
