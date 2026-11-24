@@ -254,6 +254,7 @@ func validateField(n *Node, names map[string]string, inList bool) []Problem {
 	if !inList {
 		names[name] = n.ID
 	}
+	ps = append(ps, validateDice(n)...)
 	ft := propString(n, "fieldType")
 	if !fieldTypes[ft] {
 		ps = append(ps, errorf(n.ID, "field %q has an unknown type %q", name, ft))

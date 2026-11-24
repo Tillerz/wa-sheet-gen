@@ -471,6 +471,11 @@ func (g *twigGen) field(n *Node, inCell bool, depth int) {
 	if label != "" {
 		g.line(depth, fmt.Sprintf("<div class='lbl lbl-%s'>%s</div>", cls, label))
 	}
+	if diceRule(n) != "" {
+		g.line(depth, fmt.Sprintf("{%% set %s = %s|default(0) %%}", diceValueVar(n), g.varExpr(name)))
+		g.line(depth, fmt.Sprintf("<div class='var var-%s'>%s</div>", cls, diceText(n)))
+		return
+	}
 	g.line(depth, fmt.Sprintf("<div class='var var-%s'>%s</div>", cls, g.sheetValue(n)))
 }
 
@@ -693,6 +698,11 @@ func (g *twigGen) calc(n *Node, depth int) {
 	expr := tree.twig(leaf)
 	for _, s := range sets {
 		g.line(depth, s)
+	}
+	if diceRule(n) != "" {
+		g.line(depth, fmt.Sprintf("{%% set %s = %s %%}", diceValueVar(n), expr))
+		g.line(depth, fmt.Sprintf("<div class='var var-%s'>%s</div>", cls, diceText(n)))
+		return
 	}
 	g.line(depth, fmt.Sprintf("<div class='var var-%s'>{# calc %s #}{{ %s }}</div>", cls, name, expr))
 }

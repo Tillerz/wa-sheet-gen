@@ -800,6 +800,20 @@ function fieldPanel(node, out) {
     checkRange();
   }
 
+  // A dice roll: WA turns [roll:…] in the sheet into a roll. VALUE becomes the field's value.
+  if (p.fieldType === 'number' || p.fieldType === 'calc') {
+    const dice = h('input', {
+      type: 'text', value: p.dice || '', spellcheck: false, placeholder: '[roll:1d20+VALUE|+VALUE]',
+      oninput: () => {
+        if (dice.value.trim()) p.dice = dice.value.trim();
+        else delete p.dice;
+        changed();
+      },
+    });
+    out.push(labeled('Dice roll (sheet only, optional)', dice));
+    out.push(h('p', { class: 'hint', textContent: 'The whole [roll:…] code. VALUE is replaced by the value of this field, e.g. [roll:2d20<VALUE|VALUE]. The form shows no roll. No { } quotes or % in it. Errors show when you click Check.' }));
+  }
+
   if (p.fieldType === 'text') {
     const input = h('input', {
       type: 'number', min: 1, max: 20, value: p.rows ?? 3,

@@ -158,3 +158,49 @@ func TestCalcTwigPrecedence(t *testing.T) {
 		}
 	}
 }
+
+func TestDiceRolls(t *testing.T) {
+	p := skillsProject("@base + skill")
+	list := p.Root.Children[1].Children[1]
+	list.Children[3].Props["dice"] = "[roll:2d20<VALUE|VALUE]"
+	list.Children[2].Props["dice"] = "[roll:1d20+VALUE|+VALUE]"
+	files, ps := buildExport(p)
+	if files == nil {
+		t.Fatalf("export: %s", problemsText(ps))
+	}
+	sheet, form := files["basic-sheet.html.twig"], files["edit-form.html.twig"]
+	for _, want := range []string{
+		"{% set dice_total = calc_total_1 + calc_total_2 %}",
+		"{# dice total #}[roll:2d20<{{dice_total}}|{{dice_total}}]",
+		"{% set dice_skill = attribute(variables, 'skill_' ~ id)|default(0) %}",
+		"{# dice skill #}[roll:1d20+{{dice_skill}}|+{{dice_skill}}]",
+	} {
+		if !strings.Contains(sheet, want) {
+			t.Errorf("sheet misses %q\n%s", want, sheet)
+		}
+	}
+	if strings.Contains(form, "roll") {
+		t.Errorf("the form has no dice roll")
+	}
+	// Sample: strength 5, agility 3, skill 3 → totals 8, 6, 6.
+	prev, _ := previewHTML(p)
+	for _, want := range []string{"[roll:2d20&lt;8|8]", "[roll:2d20&lt;6|6]", "[roll:1d20+3|+3]"} {
+		if !strings.Contains(prev, want) {
+			t.Errorf("preview misses %q\n%s", want, prev)
+		}
+	}
+	if strings.Contains(prev, "{") {
+		t.Errorf("preview still has Twig:\n%s", prev)
+	}
+	for _, bad := range []string{"roll:1d20", "[roll:1d20+{VALUE}]", "[roll:1d20+'a']", "[roll:1d20+VALUE%]", "[roll:2d6]]x"} {
+		p.Root.Children[1].Children[1].Children[2].Props["dice"] = bad
+		if _, ps := buildExport(p); !strings.Contains(problemsText(ps), "dice roll must look like") {
+			t.Errorf("not refused: %q: %q", bad, problemsText(ps))
+		}
+	}
+	p.Root.Children[1].Children[1].Children[2].Props["dice"] = ""
+	p.Root.Children[1].Children[1].Children[0].Props["dice"] = "[roll:1d20]"
+	if _, ps := buildExport(p); !strings.Contains(problemsText(ps), "only number and calculated") {
+		t.Errorf("a string field cannot roll: %q", problemsText(ps))
+	}
+}

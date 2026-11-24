@@ -27,8 +27,10 @@ var (
 	twigLoopRe  = regexp.MustCompile(`(?s)\{% for i in ([0-9]+)\.\.([0-9]+) %\}\n[ ]*` + regexp.QuoteMeta(loopIDLine) + `\n(.*?)[ ]*\{% endfor %\}\n`)
 	twigAttrRe  = regexp.MustCompile(`attribute\(variables, '([a-z0-9_]+)' ~ id\)`)
 	// A calculated field: its {% set calc_… %} lines are dropped, {# calc x #}{{ … }} shows the sample result.
-	calcSetRe = regexp.MustCompile(`(?m)^[ ]*\{% set calc_[^\n]*%\}\n`)
+	calcSetRe = regexp.MustCompile(`(?m)^[ ]*\{% set (?:calc|dice)_[^\n]*%\}\n`)
 	calcUseRe = regexp.MustCompile(`\{# calc ([a-z0-9_]+) #\}\{\{[^}]*\}\}`)
+	// A field with a dice roll: {# dice x #}[roll:1d20+{{dice_x}}]</div>; the preview shows the rule text with the sample value.
+	diceUseRe = regexp.MustCompile(`\{# dice ([a-z0-9_]+) #\}(.*?)</div>`)
 )
 
 // sampleData gives every field a value to show in the previews.
@@ -167,7 +169,8 @@ func renderPreview(twig string, vars map[string]string) string {
 		var b strings.Builder
 		for i := from; i <= to; i++ {
 			id := fmt.Sprintf("%03d", i)
-			body := calcUseRe.ReplaceAllString(g[3], "{{variables.${1}_"+id+"|default}}")
+			body := fillDice(g[3], vars, "_"+id)
+			body = calcUseRe.ReplaceAllString(body, "{{variables.${1}_"+id+"|default}}")
 			body = twigAttrRe.ReplaceAllString(body, "variables.${1}"+id)
 			// preset_x[i - N]|default → the entry's preset value as a Twig string
 			body = presetUseRe.ReplaceAllStringFunc(body, func(u string) string {
@@ -182,6 +185,7 @@ func renderPreview(twig string, vars map[string]string) string {
 		}
 		return b.String()
 	})
+	out = fillDice(out, vars, "")
 	out = calcUseRe.ReplaceAllString(out, "{{variables.${1}|default}}")
 	out = twigIfGt0Re.ReplaceAllStringFunc(out, func(m string) string {
 		g := twigIfGt0Re.FindStringSubmatch(m)
@@ -229,4 +233,17 @@ func renderPreview(twig string, vars map[string]string) string {
 func previewHTML(p *Project) (sheet, form string) {
 	vars := sampleData(p)
 	return renderPreview(genTwig(p, false), vars), renderPreview(genTwig(p, true), vars)
+}
+
+// fillDice puts the sample value of the field into its dice roll text. The text is escaped:
+// the rule can hold < and >.
+func fillDice(s string, vars map[string]string, suffix string) string {
+	return diceUseRe.ReplaceAllStringFunc(s, func(m string) string {
+		g := diceUseRe.FindStringSubmatch(m)
+		v := vars[g[1]+suffix]
+		if v == "" {
+			v = "0"
+		}
+		return esc(strings.ReplaceAll(g[2], "{{dice_"+g[1]+"}}", v)) + "</div>"
+	})
 }
